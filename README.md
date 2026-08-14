@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="logo-branding-amrita-universiy-2024.jpeg" alt="Amrita Vishwa Vidyapeetham Logo" width="400"/>
-</p>
-
 # Quaternion Attitude Control System of Highly Maneuverable Aerial Vehicles
 
 **Course:** 21AER314 / Drone Technologies & Flight Control  
