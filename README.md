@@ -57,28 +57,10 @@ This project implements the quaternion-based attitude control scheme proposed by
 
 **Keywords:** `Quaternion Algebra`, `Hamilton Product`, `Attitude Error`, `Axis-Angle Representation`, `Shortest Arc`, `Airspeed Scaling`
 
-```mermaid
-graph LR
-    q_sp["Setpoint Quaternion (q_sp)"] -->|Attitude Error q_err| QP["Q_P Attitude Controller"]
-    q_meas["Measured Quaternion (q_meas)"] --> QP
-    
-    QP -->|"Rate Setpoints (w_sp)"| PID["3-Axis Rate PID Controller"]
-    w_meas["Measured Body Rates (w_meas)"] --> PID
-    
-    PID -->|"Control Commands (delta_A, delta_H, delta_V)"| DYN["Aircraft Dynamics (6-DOF)"]
-    
-    DYN -.->|"AHRS Feedback"| q_meas
-    DYN -.->|"AHRS Feedback"| w_meas
-
-    style QP fill:#1f77b4,stroke:#fff,stroke-width:2px,color:#fff
-    style PID fill:#2ca02c,stroke:#fff,stroke-width:2px,color:#fff
-    style DYN fill:#ff7f0e,stroke:#fff,stroke-width:2px,color:#fff
-```
-
 <p align="center">
-  <img src="figures/methodology_control_architecture.png" alt="Cascaded Quaternion Control Architecture Diagram" width="850"/>
+  <img src="figures/fig_control_architecture_ieee.png" alt="Cascaded Quaternion Control Architecture Diagram (IEEE Style)" width="900"/>
   <br>
-  <em>Figure 2.1: Cascaded Quaternion Attitude Control & Inner-Loop Rate Loop System Architecture.</em>
+  <em>Figure 2.1: Cascaded Quaternion Attitude Control & Inner-Loop Rate Loop System Architecture (IEEE Journal Style).</em>
 </p>
 
 ### 2.1 Unit Quaternion Fundamentals
