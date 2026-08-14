@@ -57,16 +57,29 @@ This project implements the quaternion-based attitude control scheme proposed by
 
 **Keywords:** `Quaternion Algebra`, `Hamilton Product`, `Attitude Error`, `Axis-Angle Representation`, `Shortest Arc`, `Airspeed Scaling`
 
+```mermaid
+graph LR
+    q_sp["Setpoint Quaternion (q_sp)"] -->|Attitude Error q_err| QP["Q_P Attitude Controller"]
+    q_meas["Measured Quaternion (q_meas)"] --> QP
+    
+    QP -->|"Rate Setpoints (w_sp)"| PID["3-Axis Rate PID Controller"]
+    w_meas["Measured Body Rates (w_meas)"] --> PID
+    
+    PID -->|"Control Commands (delta_A, delta_H, delta_V)"| DYN["Aircraft Dynamics (6-DOF)"]
+    
+    DYN -.->|"AHRS Feedback"| q_meas
+    DYN -.->|"AHRS Feedback"| w_meas
+
+    style QP fill:#1f77b4,stroke:#fff,stroke-width:2px,color:#fff
+    style PID fill:#2ca02c,stroke:#fff,stroke-width:2px,color:#fff
+    style DYN fill:#ff7f0e,stroke:#fff,stroke-width:2px,color:#fff
 ```
-  +-----------------------+     q_err     +----------------------+   w_sp   +-------------------+  control_cmd  +--------------------+
-  | Setpoint Quaternion  | -------------> |   Q_P Attitude       | -------> |  3-Axis Rate PID  | ------------> | Aircraft Dynamics  |
-  |       q_sp            |               |    Controller        |          |    Controller     |               |      (6-DOF)       |
-  +-----------------------+               +----------------------+          +-------------------+               +--------------------+
-                                                     ^                                ^                                      |
-                                                     | q_meas                         | w_meas                               |
-                                                     +--------------------------------+--------------------------------------+
-                                                                         AHRS Feedback Loop
-```
+
+<p align="center">
+  <img src="figures/methodology_control_architecture.png" alt="Cascaded Quaternion Control Architecture Diagram" width="850"/>
+  <br>
+  <em>Figure 2.1: Cascaded Quaternion Attitude Control & Inner-Loop Rate Loop System Architecture.</em>
+</p>
 
 ### 2.1 Unit Quaternion Fundamentals
 A quaternion $q \in \mathbb{H}$ is defined as a 4-dimensional hyper-complex number:
