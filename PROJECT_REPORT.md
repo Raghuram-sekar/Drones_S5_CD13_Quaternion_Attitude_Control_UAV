@@ -15,13 +15,13 @@
 
 ## Team Information
 
-| S.No | Name | Roll Number | Email ID | Section | Role |
-| :---: | :--- | :--- | :--- | :---: | :--- |
-| 1 | **Raghuram Sekar** (Lead) | `CB.SC.U4AIE24247` | `cb.sc.u4aie24247@cb.students.amrita.edu` | C | SITL Architecture, Math Formulation & Simulation |
-| 2 | **Athul Adithyan N** | `CB.SC.U4AIE24306` | `cb.sc.u4aie24306@cb.students.amrita.edu` | D | Controller Implementation & Dynamics |
-| 3 | **Amogh Dey** | `CB.SC.U4AIE24303` | `cb.sc.u4aie24303@cb.students.amrita.edu` | D | Benchmark Analysis & Numerical Verification |
-| 4 | **Prakhar Goyal** | `CB.SC.U4AIE24366` | `cb.sc.u4aie24366@cb.students.amrita.edu` | D | Aerodynamic Modeling & Data Processing |
-| 5 | **Kneev S Jain** | `CB.SC.U4AIE24364` | `cb.sc.u4aie24364@cb.students.amrita.edu` | D | Documentation & Report Preparation |
+| S.No | Name | Roll Number | Section |
+| :---: | :--- | :--- | :---: |
+| 1 | Athul Adithyan N | CB.SC.U4AIE24306 | D |
+| 2 | Amogh Dey | CB.SC.U4AIE24303 | D |
+| 3 | Raghuram Sekar | CB.SC.U4AIE24247 | C |
+| 4 | Prakhar Goyal | CB.SC.U4AIE24366 | D |
+| 5 | Kneev S Jain | CB.SC.U4AIE24364 | D |
 
 ---
 
