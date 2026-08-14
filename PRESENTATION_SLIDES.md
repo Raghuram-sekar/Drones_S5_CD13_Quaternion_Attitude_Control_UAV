@@ -13,9 +13,9 @@
 - **Faculty Guide:** Prof. Sunil Kumar Sir
 
 ### Team Members (Group 13):
-1. Athul Adithyan N | CB.SC.U4AIE24306 | Sec D
-2. Amogh Dey | CB.SC.U4AIE24303 | Sec D
-3. Raghuram Sekar | CB.SC.U4AIE24247 | Sec C
+1. Raghuram Sekar | CB.SC.U4AIE24247 | Sec C
+2. Athul Adithyan N | CB.SC.U4AIE24306 | Sec D
+3. Amogh Dey | CB.SC.U4AIE24303 | Sec D
 4. Prakhar Goyal | CB.SC.U4AIE24366 | Sec D
 5. Kneev S Jain | CB.SC.U4AIE24364 | Sec D
 

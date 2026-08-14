@@ -17,9 +17,9 @@
 
 | S.No | Name | Roll Number | Section |
 | :---: | :--- | :--- | :---: |
-| 1 | Athul Adithyan N | CB.SC.U4AIE24306 | D |
-| 2 | Amogh Dey | CB.SC.U4AIE24303 | D |
-| 3 | Raghuram Sekar | CB.SC.U4AIE24247 | C |
+| 1 | Raghuram Sekar | CB.SC.U4AIE24247 | C |
+| 2 | Athul Adithyan N | CB.SC.U4AIE24306 | D |
+| 3 | Amogh Dey | CB.SC.U4AIE24303 | D |
 | 4 | Prakhar Goyal | CB.SC.U4AIE24366 | D |
 | 5 | Kneev S Jain | CB.SC.U4AIE24364 | D |
 
