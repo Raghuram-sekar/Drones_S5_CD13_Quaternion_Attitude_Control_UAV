@@ -58,9 +58,9 @@ This project implements the quaternion-based attitude control scheme proposed by
 **Keywords:** `Quaternion Algebra`, `Hamilton Product`, `Attitude Error`, `Axis-Angle Representation`, `Shortest Arc`, `Airspeed Scaling`
 
 <p align="center">
-  <img src="figures/fig_control_architecture_ieee.png" alt="Cascaded Quaternion Control Architecture Diagram (IEEE Style)" width="900"/>
+  <img src="figures/methodology_control_architecture.png" alt="Cascaded Quaternion Control Architecture Diagram" width="850"/>
   <br>
-  <em>Figure 2.1: Cascaded Quaternion Attitude Control & Inner-Loop Rate Loop System Architecture (IEEE Journal Style).</em>
+  <em>Figure 2.1: Cascaded Quaternion Attitude Control & Inner-Loop Rate Loop System Architecture.</em>
 </p>
 
 ### 2.1 Unit Quaternion Fundamentals
