@@ -206,24 +206,7 @@ $$
 \delta_A = \text{clip}(u_{cmd,x}, -1.0, +1.0), \quad \delta_H = \text{clip}(u_{cmd,y}, -1.0, +1.0), \quad \delta_V = \text{clip}(u_{cmd,z}, -1.0, +1.0)
 $$
 
----
 
-### 2.6 6-DOF Aircraft Rigid-Body Dynamic Equations
-The nonlinear aircraft dynamics are integrated using 6-DOF equations of motion:
-
-1. **Translational Equations (Newton's Second Law):**
-
-$$
-\begin{bmatrix} \dot{u} \\\\ \dot{v} \\\\ \dot{w} \end{bmatrix} = \begin{bmatrix} rv - qw \\\\ pw - ru \\\\ qu - pv \end{bmatrix} + \frac{1}{m} \begin{bmatrix} F_x \\\\ F_y \\\\ F_z \end{bmatrix} + g \cdot R(q)^T \begin{bmatrix} 0 \\\\ 0 \\\\ 1 \end{bmatrix}
-$$
-
-2. **Rotational Equations (Euler's Equations of Motion):**
-
-$$
-\begin{bmatrix} \dot{p} \\\\ \dot{q} \\\\ \dot{r} \end{bmatrix} = \mathbf{J}^{-1} \left( \begin{bmatrix} L_{aero} \\\\ M_{aero} \\\\ N_{aero} \end{bmatrix} - \begin{bmatrix} p \\\\ q \\\\ r \end{bmatrix} \times \mathbf{J} \begin{bmatrix} p \\\\ q \\\\ r \end{bmatrix} \right)
-$$
-
-where $\mathbf{J}$ is the aircraft inertia tensor, $[u, v, w]^T$ are body linear velocities, $[p, q, r]^T = \boldsymbol{\omega}_{meas}$ are body angular rates, $[F_x, F_y, F_z]^T$ are aerodynamic forces, and $[L, M, N]^T$ are aerodynamic moments.
 
 ---
 
