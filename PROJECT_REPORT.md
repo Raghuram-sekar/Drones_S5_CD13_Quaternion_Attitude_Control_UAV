@@ -59,7 +59,7 @@ When an aircraft pitches vertically to $\theta = \pm 90^{\circ}$, the Roll axis 
 <p align="center">
   <img src="figures/fig_gimbal_lock_diagram.png" alt="Gimbal Lock Axis Alignment Diagram" width="850"/>
   <br>
-  <em>Figure 1.1: 3D Axis Alignment during Gimbal Lock (\theta = 90^\circ). Normal flight (Left) provides 3 orthogonal degrees of freedom; at pitch \theta = 90^\circ (Right), the Roll axis (\phi) aligns with the Yaw axis (\psi).</em>
+  <em>Figure 1.1: 3D Axis Alignment during Gimbal Lock (&theta; = 90&deg;). Normal flight (Left) provides 3 orthogonal degrees of freedom; at pitch &theta; = 90&deg; (Right), the Roll axis (&phi;) aligns with the Yaw axis (&psi;).</em>
 </p>
 
 Mathematically, the kinematic differential equation mapping body angular rates $(p, q, r)$ to Euler angle rates $(\dot{\phi}, \dot{\theta}, \dot{\psi})$ contains tangent and secant functions of pitch angle $\theta$:
@@ -81,7 +81,7 @@ In conventional level flight ($\phi = 0^{\circ}$), elevator deflection generates
 <p align="center">
   <img src="figures/fig_cross_coupling_diagram.png" alt="Control Surface Cross-Coupling Diagram" width="850"/>
   <br>
-  <em>Figure 1.2: Control Surface Cross-Coupling during 90^\circ Knife-Edge Flight. Elevator deflection produces horizontal Yawing moment, while Rudder deflection produces vertical Pitching moment.</em>
+  <em>Figure 1.2: Control Surface Cross-Coupling during 90&deg; Knife-Edge Flight. Elevator deflection produces horizontal Yawing moment, while Rudder deflection produces vertical Pitching moment.</em>
 </p>
 
 Classical Euler PID controllers maintain 3 independent, decoupled control loops (Roll PID, Pitch PID, Yaw PID). When a pitch error occurs at $90^{\circ}$ bank, the blind Pitch PID loop deflects the Elevator—unwittingly generating massive horizontal yawing forces that spin the aircraft out of control.
