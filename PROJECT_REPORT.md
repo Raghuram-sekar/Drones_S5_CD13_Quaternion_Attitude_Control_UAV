@@ -44,7 +44,7 @@ Flight attitude control forms the core inner loop of an aircraft autopilot syste
 1. **Gimbal Lock Singularity:** At $\theta = \pm 90^{\circ}$, the matrix transforming body angular rates $(p, q, r)$ to Euler angle rates $(\dot{\phi}, \dot{\theta}, \dot{\psi})$ becomes singular:
 
 $$
-\begin{bmatrix} \dot{\phi} \\ \dot{\theta} \\ \dot{\psi} \end{bmatrix} = \begin{bmatrix} 1 & \sin\phi \tan\theta & \cos\phi \tan\theta \\ 0 & \cos\phi & -\sin\phi \\ 0 & \sin\phi \sec\theta & \cos\phi \sec\theta \end{bmatrix} \begin{bmatrix} p \\ q \\ r \end{bmatrix}
+\begin{bmatrix} \dot{\phi} \\\\ \dot{\theta} \\\\ \dot{\psi} \end{bmatrix} = \begin{bmatrix} 1 & \sin\phi \tan\theta & \cos\phi \tan\theta \\\\ 0 & \cos\phi & -\sin\phi \\\\ 0 & \sin\phi \sec\theta & \cos\phi \sec\theta \end{bmatrix} \begin{bmatrix} p \\\\ q \\\\ r \end{bmatrix}
 $$
 
 As $\theta \to \pm 90^{\circ}$, $\tan\theta \to \infty$ and $\sec\theta \to \infty$, causing numeric overflow and control failure.
@@ -68,16 +68,16 @@ To overcome these shortcomings, this project implements a unit quaternion attitu
 A unit quaternion $q \in \mathbb{H}$ represents orientation without singularities:
 
 $$
-q = \begin{bmatrix} q_w \\ q_x \\ q_y \\ q_z \end{bmatrix} = q_w + q_x \mathbf{i} + q_y \mathbf{j} + q_z \mathbf{k}, \quad \|q\| = 1
+q = \begin{bmatrix} q_w \\\\ q_x \\\\ q_y \\\\ q_z \end{bmatrix} = q_w + q_x \mathbf{i} + q_y \mathbf{j} + q_z \mathbf{k}, \quad \|q\| = 1
 $$
 
 The **Hamilton Product** ($p \otimes q$) is non-commutative and corresponds to composite spatial rotations:
 
 $$
 p \otimes q = \begin{bmatrix} 
-p_w q_w - p_x q_x - p_y q_y - p_z q_z \\
-p_w q_x + p_x q_w + p_y q_z - p_z q_y \\
-p_w q_y - p_x q_z + p_y q_w + p_z q_x \\
+p_w q_w - p_x q_x - p_y q_y - p_z q_z \\\\
+p_w q_x + p_x q_w + p_y q_z - p_z q_y \\\\
+p_w q_y - p_x q_z + p_y q_w + p_z q_x \\\\
 p_w q_z + p_x q_y - p_y q_x + p_z q_w 
 \end{bmatrix}
 $$
@@ -108,7 +108,7 @@ $$
 Converting quaternion rate $\dot{q}_{sp}$ to body frame angular rate setpoints $\boldsymbol{\omega}_{sp} = [\omega_{x,sp}, \omega_{y,sp}, \omega_{z,sp}]^T$:
 
 $$
-\boldsymbol{\omega}_{sp} = 2 \, \bar{q}_u \otimes \dot{q}_{sp} \implies \begin{bmatrix} \omega_{x,sp} \\ \omega_{y,sp} \\ \omega_{z,sp} \end{bmatrix} = 2 \cdot K_p \cdot \begin{bmatrix} q_{x,err,short} \\ q_{y,err,short} \\ q_{z,err,short} \end{bmatrix}
+\boldsymbol{\omega}_{sp} = 2 \, \bar{q}_u \otimes \dot{q}_{sp} \implies \begin{bmatrix} \omega_{x,sp} \\\\ \omega_{y,sp} \\\\ \omega_{z,sp} \end{bmatrix} = 2 \cdot K_p \cdot \begin{bmatrix} q_{x,err,short} \\\\ q_{y,err,short} \\\\ q_{z,err,short} \end{bmatrix}
 $$
 
 ---
@@ -125,19 +125,19 @@ An aircraft is flying in a **$90^{\circ}$ Knife-Edge Bank Turn** (measured attit
 1. **Measured Aircraft Attitude ($q_{meas}$):** Banked at $90^{\circ}$ roll ($\phi = 90^{\circ}, \theta = 0^{\circ}, \psi = 0^{\circ}$):
 
 $$
-q_{meas} = \begin{bmatrix} \cos(45^{\circ}) \\ \sin(45^{\circ}) \\ 0.0000 \\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.7071 \\ 0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix}
+q_{meas} = \begin{bmatrix} \cos(45^{\circ}) \\\\ \sin(45^{\circ}) \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.7071 \\\\ 0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix}
 $$
 
 2. **Target Setpoint Attitude ($q_{sp}$):** Pitching up by $30^{\circ}$ ($\phi = 0^{\circ}, \theta = 30^{\circ}, \psi = 0^{\circ}$):
 
 $$
-q_{sp} = \begin{bmatrix} \cos(15^{\circ}) \\ 0.0000 \\ \sin(15^{\circ}) \\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.9659 \\ 0.0000 \\ 0.2588 \\ 0.0000 \end{bmatrix}
+q_{sp} = \begin{bmatrix} \cos(15^{\circ}) \\\\ 0.0000 \\\\ \sin(15^{\circ}) \\\\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.9659 \\\\ 0.0000 \\\\ 0.2588 \\\\ 0.0000 \end{bmatrix}
 $$
 
 3. **Current Measured Gyro Speeds:** Currently stationary:
 
 $$
-\boldsymbol{\omega}_{meas} = \begin{bmatrix} 0.0 \\ 0.0 \\ 0.0 \end{bmatrix} \text{ rad/s}
+\boldsymbol{\omega}_{meas} = \begin{bmatrix} 0.0 \\\\ 0.0 \\\\ 0.0 \end{bmatrix} \text{ rad/s}
 $$
 
 4. **Current Airspeed:** $V = 30\text{ m/s}$ (Trim airspeed $V_0 = 30\text{ m/s}$).
@@ -157,7 +157,7 @@ $$
 Flip the imaginary vector signs of $q_{meas}$ to create the conjugate:
 
 $$
-\bar{q}_{meas} = \begin{bmatrix} 0.7071 \\ -0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix}
+\bar{q}_{meas} = \begin{bmatrix} 0.7071 \\\\ -0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix}
 $$
 
 #### STEP 2: Compute Attitude Error Quaternion
@@ -165,7 +165,7 @@ $$
 Execute the Hamilton Product ($q_{err} = \bar{q}_{meas} \otimes q_{sp}$):
 
 $$
-q_{err} = \begin{bmatrix} 0.7071 \\ -0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix} \otimes \begin{bmatrix} 0.9659 \\ 0.0000 \\ 0.2588 \\ 0.0000 \end{bmatrix}
+q_{err} = \begin{bmatrix} 0.7071 \\\\ -0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix} \otimes \begin{bmatrix} 0.9659 \\\\ 0.0000 \\\\ 0.2588 \\\\ 0.0000 \end{bmatrix}
 $$
 
 Expanding the 4 components:
@@ -189,7 +189,7 @@ $$
 Resulting Error Quaternion:
 
 $$
-q_{err} = \begin{bmatrix} 0.6830 \\ -0.6830 \\ 0.1830 \\ -0.1830 \end{bmatrix}
+q_{err} = \begin{bmatrix} 0.6830 \\\\ -0.6830 \\\\ 0.1830 \\\\ -0.1830 \end{bmatrix}
 $$
 
 #### STEP 3: Shortest-Path Arc Check
@@ -198,7 +198,7 @@ Check the scalar component $q_{w,err}$:
 - Since $q_{w,err} = 0.6830 \ge 0$, no sign inversion is needed!
 
 $$
-q_{err,short} = \begin{bmatrix} 0.6830 \\ -0.6830 \\ 0.1830 \\ -0.1830 \end{bmatrix}
+q_{err,short} = \begin{bmatrix} 0.6830 \\\\ -0.6830 \\\\ 0.1830 \\\\ -0.1830 \end{bmatrix}
 $$
 
 #### STEP 4: Compute Outer Loop Target Spin Speeds
