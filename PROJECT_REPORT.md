@@ -62,7 +62,7 @@ When an aircraft pitches vertically to $\theta = \pm 90°$, the Roll axis ($\mat
   <em>Figure 1.1: 3D Axis Alignment during Gimbal Lock (&theta; = 90&deg;). Normal flight (Left) provides 3 orthogonal degrees of freedom; at pitch &theta; = 90&deg; (Right), the Roll axis (&phi;) aligns with the Yaw axis (&psi;).</em>
 </p>
 
-Mathematically, the kinematic differential equation mapping body angular rates $(p, q, r)$ to Euler angle rates $(\dot{\phi}, \dot{\theta}, \dot{\psi})$ contains tangent and secant functions of pitch angle $\theta$:
+Mathematically, the kinematic differential equation mapping body angular rates $(p, q, r) $ to Euler angle rates $(\dot{\phi}, \dot{\theta}, \dot{\psi}) $ contains tangent and secant functions of pitch angle $\theta$:
 
 $$
 \begin{bmatrix} \dot{\phi} \\\\ \dot{\theta} \\\\ \dot{\psi} \end{bmatrix} = \begin{bmatrix} 1 & \sin\phi \tan\theta & \cos\phi \tan\theta \\\\ 0 & \cos\phi & -\sin\phi \\\\ 0 & \sin\phi \sec\theta & \cos\phi \sec\theta \end{bmatrix} \begin{bmatrix} p \\\\ q \\\\ r \end{bmatrix}
@@ -99,7 +99,7 @@ Euler transformations require continuous evaluation of expensive transcendental 
 To overcome all 3 limitations, this project implements a non-singular **Quaternion Proportional ($Q_P$) Attitude Controller** based on the formulation by Michał Gołąbek et al. (MDPI Electronics 2022).
 
 #### 🛡️ How Quaternions Eliminate Every Flaw:
-1. **Four-Component Hyper-Complex Representation:** Quaternions parameterize 3D rotation using 4 scalar values ($q = [q_w, q_x, q_y, q_z]^T$) constrained to a 4D unit hypersphere ($Sp(1) \cong SO(3)$). Because 4 parameters represent 3 rotational degrees of freedom, there are **no division operations** and **zero singularities (No Gimbal Lock)** at any pitch angle.
+1. **Four-Component Hyper-Complex Representation:** Quaternions parameterize 3D rotation using 4 scalar values ($q = [q_w, q_x, q_y, q_z]^T$) constrained to a 4D unit hypersphere (group $Sp(1) \cong SO(3)$). Because 4 parameters represent 3 rotational degrees of freedom, there are **no division operations** and **zero singularities (No Gimbal Lock)** at any pitch angle.
 2. **Unified 3D Spatial Geometry:** The $Q_P$ controller computes rotation error as a single 3D vector in body space. At $80° - 90°$ bank angles, it automatically routes control signals to the correct physical surfaces (Rudder for pitch, Elevator for yaw) without requiring gain scheduling.
 3. **Pure Algebraic Computation:** Quaternion attitude kinematics rely exclusively on vector cross products, dot products, and scalar multiplications (Hamilton Product)—completely eliminating transcendental trigonometric function calls during flight control loops.
 
@@ -190,7 +190,7 @@ $$
 ---
 
 ### 2.3 Shortest-Path Rotation & Axis-Angle Resolution
-Because $q$ and $-q$ represent identical physical 3D orientations (double covering of $SO(3)$ by $Sp(1)$), the controller must ensure rotation along the shorter arc ($\le 180°$). The scalar component check is:
+Because $q$ and $-q$ represent identical physical 3D orientations (double covering of $SO(3) $ by $Sp(1) $), the controller must ensure rotation along the shorter arc ($\le 180°$). The scalar component check is:
 
 $$
 q_{err,short} = \begin{cases} -q_{err} & \text{if } q_{w,err} < 0 \\\\ q_{err} & \text{if } q_{w,err} \ge 0 \end{cases}
@@ -278,7 +278,7 @@ $$
 q_{meas} = \begin{bmatrix} \cos(45^{\circ}) \\\\ \sin(45^{\circ}) \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.7071 \\\\ 0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix}
 $$
 
-2. **Target Setpoint Attitude ($q_{sp}$):** Pitching up by $30°$($\phi = 0°, \theta = 30°, \psi = 0°$):
+2. **Target Setpoint Attitude ($q_{sp}$):** Pitching up by $30^{\circ}$ ($\phi = 0^{\circ}, \theta = 30^{\circ}, \psi = 0^{\circ}$):
 
 $$
 q_{sp} = \begin{bmatrix} \cos(15^{\circ}) \\\\ 0.0000 \\\\ \sin(15^{\circ}) \\\\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.9659 \\\\ 0.0000 \\\\ 0.2588 \\\\ 0.0000 \end{bmatrix}
@@ -290,10 +290,15 @@ $$
 \boldsymbol{\omega}_{meas} = \begin{bmatrix} 0.0 \\\\ 0.0 \\\\ 0.0 \end{bmatrix} \text{ rad/s}
 $$
 
-4. **Current Airspeed:**$V = 30\text{ m/s}$(Trim airspeed $V_0 = 30\text{ m/s}$).
+4. **Current Airspeed:** $V = 30\text{ m/s}$ (Trim airspeed $V_0 = 30\text{ m/s}$).
 
 5. **Autopilot Gains:**
-   - Outer Loop $Q_P$ Gain:$K_p = 3.5$- Inner Loop Roll Rate PID Gains:$K_{P,rate} = 0.5$,$K_{I,rate} = 2.0$,$K_{D,rate} = 0.1$- Time Step:$\Delta t = 0.01\text{ s}$- Accumulated Past Roll Error:$\sum (e_{\omega,x} \cdot \Delta t) = 0.05\text{ rad}$---
+   - **Outer Loop $Q_P$ Gain:** $K_p = 3.5$
+   - **Inner Loop Roll Rate PID Gains:** $K_{P,rate} = 0.5$, $K_{I,rate} = 2.0$, $K_{D,rate} = 0.1$
+   - **Time Step:** $\Delta t = 0.01\text{ s}$
+   - **Accumulated Past Roll Error:** $\sum (e_{\omega,x} \cdot \Delta t) = 0.05\text{ rad}$
+
+---
 
 ### ─── OUTER LOOP ($Q_P$ CONTROLLER) ───
 
