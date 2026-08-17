@@ -262,7 +262,6 @@ $$
 
 ## 3. Step-by-Step Numerical Toy Example
 
-
 ### Problem Scenario Setup
 
 An aircraft is flying in a **$90^{\circ}$ Knife-Edge Bank Turn** (measured attitude $q_{meas}$) and receives a setpoint command from the guidance computer to **pitch up by $30^{\circ}$** (setpoint attitude $q_{sp}$).
@@ -309,28 +308,21 @@ $$
 
 #### STEP 2: Compute Attitude Error Quaternion
 
-Execute the Hamilton Product ($q_{err} = \bar{q}_{meas} \otimes q_{sp}$):
+Execute the Hamilton Product:
 
 $$
-q_{err} = \begin{bmatrix} 0.7071 \\\\ -0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix} \otimes \begin{bmatrix} 0.9659 \\\\ 0.0000 \\\\ 0.2588 \\\\ 0.0000 \end{bmatrix}
+q_{err} = \bar{q}_{meas} \otimes q_{sp} = \begin{bmatrix} 0.7071 \\\\ -0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix} \otimes \begin{bmatrix} 0.9659 \\\\ 0.0000 \\\\ 0.2588 \\\\ 0.0000 \end{bmatrix}
 $$
 
 Expanding the 4 components:
 
 $$
-q_{w,err} = (0.7071)(0.9659) - (-0.7071)(0.0) - (0)(0.2588) - (0)(0) = 0.6830
-$$
-
-$$
-q_{x,err} = (0.7071)(0.0) + (-0.7071)(0.9659) + (0)(0) - (0)(0.2588) = -0.6830
-$$
-
-$$
-q_{y,err} = (0.7071)(0.2588) - (-0.7071)(0) + (0)(0.9659) + (0)(0) = 0.1830
-$$
-
-$$
-q_{z,err} = (0.7071)(0) + (-0.7071)(0.2588) - (0)(0) + (0)(0.9659) = -0.1830
+\begin{aligned}
+q_{w,err} &= (0.7071)(0.9659) - (-0.7071)(0.0) - (0)(0.2588) - (0)(0) = 0.6830 \\\\
+q_{x,err} &= (0.7071)(0.0) + (-0.7071)(0.9659) + (0)(0) - (0)(0.2588) = -0.6830 \\\\
+q_{y,err} &= (0.7071)(0.2588) - (-0.7071)(0) + (0)(0.9659) + (0)(0) = 0.1830 \\\\
+q_{z,err} &= (0.7071)(0) + (-0.7071)(0.2588) - (0)(0) + (0)(0.9659) = -0.1830
+\end{aligned}
 $$
 
 Resulting Error Quaternion:
@@ -350,7 +342,7 @@ $$
 
 #### STEP 4: Compute Outer Loop Target Spin Speeds
 
-Apply the $Q_P$ Master Control Formula ($\boldsymbol{\omega}_{sp} = 2 \cdot K_p \cdot \mathbf{q}_{v,err,short}$) with $K_p = 3.5$:
+Apply the $Q_P$ Master Control Formula $\boldsymbol{\omega}_{sp} = 2 \cdot K_p \cdot \mathbf{q}_{v,err,short}$ with $K_p = 3.5$:
 
 - **Target Roll Spin Speed ($\omega_{x,sp}$):**
 
@@ -370,7 +362,11 @@ $$
 \omega_{z,sp} = 2 \times 3.5 \times (-0.1830) = -1.2811\text{ rad/s } (-73.40^{\circ}/\text{s})
 $$
 
-> 🔗 **Outer Loop Output:** The Outer Loop outputs target spin speeds $\boldsymbol{\omega}_{sp} = [-4.7811, +1.2811, -1.2811]^T \text{ rad/s}$ down to the Inner Loop!
+Resulting Target Angular Rate Vector:
+
+$$
+\boldsymbol{\omega}_{sp} = \begin{bmatrix} -4.7811 \\\\ +1.2811 \\\\ -1.2811 \end{bmatrix} \text{ rad/s} \quad \left( \begin{bmatrix} -273.94^{\circ} \\\\ +73.40^{\circ} \\\\ -73.40^{\circ} \end{bmatrix} / \text{s} \right)
+$$
 
 ---
 
@@ -430,7 +426,6 @@ $$
 $$
 
 ---
-
 
 ## 4. Results & Simulation Benchmarking
 
