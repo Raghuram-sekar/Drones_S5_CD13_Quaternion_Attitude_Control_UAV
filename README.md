@@ -1,9 +1,9 @@
 # Quaternion Attitude Control System of Highly Maneuverable Aerial Vehicles
 
-**Course:** 21AER314 / Drone Technologies & Flight Control  
-**Institution:** Amrita School of Engineering, Amrita Vishwa Vidyapeetham  
-**Repository Name:** `Drones_S5_CD13_Quaternion_Attitude_Control_UAV`  
-**Group Number:** 13 (Section C/D)  
+**Course:** 21AER314 / Drone Technologies & Flight Control 
+**Institution:** Amrita School of Engineering, Amrita Vishwa Vidyapeetham 
+**Repository Name:** `Drones_S5_CD13_Quaternion_Attitude_Control_UAV` 
+**Group Number:** 13 (Section C/D) 
 
 ---
 
@@ -25,7 +25,7 @@
 **Quaternion-Based Non-Singular Attitude Control Architecture for Highly Maneuverable Fixed-Wing UAVs and Aerobatic Drones**
 
 ### Abstract
-Modern unmanned aerial vehicles (UAVs) and high-performance strike drones are increasingly required to execute aggressive spatial maneuvers, including steep bank turns ($80° - 90°$), vertical climbs, and knife-edge flights. Traditional attitude control architectures relying on **Euler angles** ($\phi, \theta, \psi$) suffer from inherent mathematical singularities (gimbal lock at$\theta = \pm 90°$) and catastrophic control surface cross-coupling (where elevators inadvertently control yaw and rudders control pitch). This project presents a non-singular **Quaternion Proportional ($Q_P$) Attitude Controller** cascaded with a 3-axis inner-loop angular rate PID controller. Using unit quaternion kinematics, the controller guarantees non-singular, shortest-path 3D attitude tracking across full spatial rotations without trigonometric overhead. The system is validated in a 6-DOF dynamic Software-in-the-Loop (SITL) simulation environment modeling an aerobatic aircraft (Extra 330SC). Comparative benchmarks against conventional Euler PID controllers across$30°, 60°, 80°,$ and $90°$ bank maneuvers demonstrate that the quaternion controller completely eliminates cross-coupling error, reducing tracking RMSE at $90°$ bank from $30.50°$(Euler) to $3.07°$(Quaternion).
+Modern unmanned aerial vehicles (UAVs) and high-performance strike drones are increasingly required to execute aggressive spatial maneuvers, including steep bank turns ($80° - 90°$), vertical climbs, and knife-edge flights. Traditional attitude control architectures relying on **Euler angles** ($\phi, \theta, \psi $) suffer from inherent mathematical singularities (gimbal lock at $\theta = \pm 90°$) and catastrophic control surface cross-coupling (where elevators inadvertently control yaw and rudders control pitch). This project presents a non-singular **Quaternion Proportional ($ Q_P $) Attitude Controller** cascaded with a 3-axis inner-loop angular rate PID controller. Using unit quaternion kinematics, the controller guarantees non-singular, shortest-path 3D attitude tracking across full spatial rotations without trigonometric overhead. The system is validated in a 6-DOF dynamic Software-in-the-Loop (SITL) simulation environment modeling an aerobatic aircraft (Extra 330SC). Comparative benchmarks against conventional Euler PID controllers across$30°, 60°, 80°, $ and$90°$ bank maneuvers demonstrate that the quaternion controller completely eliminates cross-coupling error, reducing tracking RMSE at $90°$ bank from $30.50°$(Euler) to $3.07°$(Quaternion).
 
 
 ---
@@ -36,9 +36,9 @@ Modern unmanned aerial vehicles (UAVs) and high-performance strike drones are in
 Flight attitude control forms the core inner loop of an aircraft autopilot system. Modern unmanned aerial vehicles (UAVs), tactical aerobatic drones, and high-performance strike aircraft are increasingly required to execute aggressive 3D spatial maneuvers—including $90°$ knife-edge bank turns, vertical nose-up climbs, inverted flight, and high-g split-S evasions.
 
 Historically, standard autopilot architectures (such as legacy ArduPilot or PX4 configurations) express aircraft 3D orientation using **3 Euler angles**:
-- **Roll ($\phi$):** Tilting the wings left or right around the body longitudinal axis ($\mathbf{X}_b$).
-- **Pitch ($\theta$):** Pointing the nose up or down around the body lateral axis ($\mathbf{Y}_b$).
-- **Yaw ($\psi$):** Pointing the nose left or right around the body vertical axis ($\mathbf{Z}_b$).
+- **Roll ($\phi $):** Tilting the wings left or right around the body longitudinal axis ($\mathbf{X}_b$).
+- **Pitch ($\theta $):** Pointing the nose up or down around the body lateral axis ($\mathbf{Y}_b$).
+- **Yaw ($\psi $):** Pointing the nose left or right around the body vertical axis ($\mathbf{Z}_b$).
 
 While Euler angles provide an intuitive 3-angle representation for dashboard displays, they suffer from **3 major mathematical and aerodynamic flaws** during aggressive drone flight.
 
@@ -48,21 +48,21 @@ While Euler angles provide an intuitive 3-angle representation for dashboard dis
 
 #### ❌ Flaw 1: Gimbal Lock Singularity ($\theta = \pm 90°$)
 
-When an aircraft pitches vertically to $\theta = \pm 90°$, the Roll axis ($\mathbf{X}_b$) rotates into alignment with the Yaw axis ($\mathbf{Z}_b$). As a result, rotations around Roll and Yaw produce the exact same spatial motion, causing a **loss of 1 rotational degree of freedom** (collapsing 3D orientation space into a 2D plane).
+When an aircraft pitches vertically to $\theta = \pm 90°$, the Roll axis ($\mathbf{X}_b $) rotates into alignment with the Yaw axis ($\mathbf{Z}_b$). As a result, rotations around Roll and Yaw produce the exact same spatial motion, causing a **loss of 1 rotational degree of freedom** (collapsing 3D orientation space into a 2D plane).
 
 <p align="center">
-  <img src="figures/fig_gimbal_lock_diagram.png" alt="Gimbal Lock Axis Alignment Diagram" width="850"/>
-  <br>
-  <em>Figure 1.1: 3D Axis Alignment during Gimbal Lock (&theta; = 90&deg;). Normal flight (Left) provides 3 orthogonal degrees of freedom; at pitch &theta; = 90&deg; (Right), the Roll axis (&phi;) aligns with the Yaw axis (&psi;).</em>
+ <img src="figures/fig_gimbal_lock_diagram.png" alt="Gimbal Lock Axis Alignment Diagram" width="850"/>
+ <br>
+ <em>Figure 1.1: 3D Axis Alignment during Gimbal Lock (&theta; = 90&deg;). Normal flight (Left) provides 3 orthogonal degrees of freedom; at pitch &theta; = 90&deg; (Right), the Roll axis (&phi;) aligns with the Yaw axis (&psi;).</em>
 </p>
 
-Mathematically, the kinematic differential equation mapping body angular rates $(p, q, r) $ to Euler angle rates $(\dot{\phi}, \dot{\theta}, \dot{\psi}) $ contains tangent and secant functions of pitch angle $\theta$:
+Mathematically, the kinematic differential equation mapping body angular rates $(p, q, r)$ to Euler angle rates $(\dot{\phi}, \dot{\theta}, \dot{\psi})$ contains tangent and secant functions of pitch angle $\theta$:
 
 $$
 \begin{bmatrix} \dot{\phi} \\\\ \dot{\theta} \\\\ \dot{\psi} \end{bmatrix} = \begin{bmatrix} 1 & \sin\phi \tan\theta & \cos\phi \tan\theta \\\\ 0 & \cos\phi & -\sin\phi \\\\ 0 & \sin\phi \sec\theta & \cos\phi \sec\theta \end{bmatrix} \begin{bmatrix} p \\\\ q \\\\ r \end{bmatrix}
 $$
 
-As $\theta \to \pm 90°$,$\tan(90°) \to \infty$ and$\sec(90°) \to \infty$. The flight control computer encounters an unavoidable **divide-by-zero numerical overflow** and crashes.
+As $\theta \to \pm 90°$, $\tan(90°) \to \infty $ and $\sec(90°) \to \infty$. The flight control computer encounters an unavoidable **divide-by-zero numerical overflow** and crashes.
 
 ---
 
@@ -73,9 +73,9 @@ In conventional level flight ($\phi = 0°$), elevator deflection generates pitch
 - **Rudder (Horizontal Flap):** Deflecting the horizontal rudder produces an aerodynamic force vector in the vertical plane, creating **Pitching moment** instead of Yawing moment.
 
 <p align="center">
-  <img src="figures/fig_cross_coupling_diagram.png" alt="Control Surface Cross-Coupling Diagram" width="850"/>
-  <br>
-  <em>Figure 1.2: Control Surface Cross-Coupling during 90&deg; Knife-Edge Flight. Elevator deflection produces horizontal Yawing moment, while Rudder deflection produces vertical Pitching moment.</em>
+ <img src="figures/fig_cross_coupling_diagram.png" alt="Control Surface Cross-Coupling Diagram" width="850"/>
+ <br>
+ <em>Figure 1.2: Control Surface Cross-Coupling during 90&deg; Knife-Edge Flight. Elevator deflection produces horizontal Yawing moment, while Rudder deflection produces vertical Pitching moment.</em>
 </p>
 
 Classical Euler PID controllers maintain 3 independent, decoupled control loops (Roll PID, Pitch PID, Yaw PID). When a pitch error occurs at $90°$ bank, the blind Pitch PID loop deflects the Elevator—unwittingly generating massive horizontal yawing forces that spin the aircraft out of control.
@@ -93,8 +93,8 @@ Euler transformations require continuous evaluation of expensive transcendental 
 To overcome all 3 limitations, this project implements a non-singular **Quaternion Proportional ($Q_P$) Attitude Controller** based on the formulation by Michał Gołąbek et al. (MDPI Electronics 2022).
 
 #### 🛡️ How Quaternions Eliminate Every Flaw:
-1. **Four-Component Hyper-Complex Representation:** Quaternions parameterize 3D rotation using 4 scalar values ($q = [q_w, q_x, q_y, q_z]^T$) constrained to a 4D unit hypersphere (group $Sp(1) \cong SO(3)$). Because 4 parameters represent 3 rotational degrees of freedom, there are **no division operations** and **zero singularities (No Gimbal Lock)** at any pitch angle.
-2. **Unified 3D Spatial Geometry:** The $Q_P$ controller computes rotation error as a single 3D vector in body space. At $80° - 90°$ bank angles, it automatically routes control signals to the correct physical surfaces (Rudder for pitch, Elevator for yaw) without requiring gain scheduling.
+1. **Four-Component Hyper-Complex Representation:** Quaternions parameterize 3D rotation using 4 scalar values ($q = [q_w, q_x, q_y, q_z]^T $) constrained to a 4D unit hypersphere (group$ Sp(1) \cong SO(3)$). Because 4 parameters represent 3 rotational degrees of freedom, there are **no division operations** and **zero singularities (No Gimbal Lock)** at any pitch angle.
+2. **Unified 3D Spatial Geometry:** The $Q_P $ controller computes rotation error as a single 3D vector in body space. At$80° - 90°$ bank angles, it automatically routes control signals to the correct physical surfaces (Rudder for pitch, Elevator for yaw) without requiring gain scheduling.
 3. **Pure Algebraic Computation:** Quaternion attitude kinematics rely exclusively on vector cross products, dot products, and scalar multiplications (Hamilton Product)—completely eliminating transcendental trigonometric function calls during flight control loops.
 
 ---
@@ -102,9 +102,9 @@ To overcome all 3 limitations, this project implements a non-singular **Quaterni
 ## 2. Methodology & Mathematical Formulation
 
 <p align="center">
-  <img src="figures/methodology_control_architecture.png" alt="Cascaded Quaternion Control Architecture Diagram" width="850"/>
-  <br>
-  <em>Figure 2.1: Cascaded Quaternion Attitude Control & Inner-Loop Rate Loop System Architecture.</em>
+ <img src="figures/methodology_control_architecture.png" alt="Cascaded Quaternion Control Architecture Diagram" width="850"/>
+ <br>
+ <em>Figure 2.1: Cascaded Quaternion Attitude Control & Inner-Loop Rate Loop System Architecture.</em>
 </p>
 
 ### 2.1 Unit Quaternion Fundamentals & Kinematics
@@ -116,9 +116,9 @@ $$
 
 where $q_w \in \mathbb{R}$ is the scalar part and $\mathbf{q}_v = [q_x, q_y, q_z]^T \in \mathbb{R}^3$ is the vector imaginary part.
 
-Unit quaternions satisfy the unit norm constraint $\|q\| = \sqrt{q_w^2 + q_x^2 + q_y^2 + q_z^2} = 1$, forming the group $Sp(1) \cong SO(3)$.
+Unit quaternions satisfy the unit norm constraint $\|q\| = \sqrt{q_w^2 + q_x^2 + q_y^2 + q_z^2} = 1$, forming the group $ Sp(1) \cong SO(3)$.
 
-The **Quaternion Conjugate**$\bar{q}$ and **Inverse**$q^{-1}$(for unit quaternions) are defined as:
+The **Quaternion Conjugate** $\bar{q}$ and **Inverse**$q^{-1}$(for unit quaternions) are defined as:
 
 $$
 \bar{q} = \begin{bmatrix} q_w \\\\ -q_x \\\\ -q_y \\\\ -q_z \end{bmatrix}, \quad q^{-1} = \bar{q}
@@ -135,7 +135,7 @@ p_w q_z + p_x q_y - p_y q_x + p_z q_w
 \end{bmatrix}
 $$
 
-The **Direction Cosine Rotation Matrix**$R(q) \in SO(3)$ transforming vectors from the body frame to the inertial frame is:
+The **Direction Cosine Rotation Matrix** $R(q) \in SO(3)$ transforming vectors from the body frame to the inertial frame is:
 
 $$
 R(q) = \begin{bmatrix} 
@@ -184,7 +184,7 @@ $$
 ---
 
 ### 2.3 Shortest-Path Rotation & Axis-Angle Resolution
-Because $q$ and $-q$ represent identical physical 3D orientations (double covering of $SO(3) $ by $Sp(1) $), the controller must ensure rotation along the shorter arc ($\le 180°$). The scalar component check is:
+Because $q $ and$-q $ represent identical physical 3D orientations (double covering of$SO(3)$ by $Sp(1)$), the controller must ensure rotation along the shorter arc ($\le 180°$). The scalar component check is:
 
 $$
 q_{err,short} = \begin{cases} -q_{err} & \text{if } q_{w,err} < 0 \\\\ q_{err} & \text{if } q_{w,err} \ge 0 \end{cases}
@@ -196,7 +196,7 @@ $$
 q_{w,err} = \cos\left(\frac{\alpha}{2}\right), \quad \mathbf{q}_{v,err} = \mathbf{e} \sin\left(\frac{\alpha}{2}\right)
 $$
 
-where $\alpha$ is the principal rotation error angle and $\mathbf{e}$ is the unit rotation axis.
+where $\alpha $ is the principal rotation error angle and$\mathbf{e}$ is the unit rotation axis.
 
 ---
 
@@ -246,7 +246,7 @@ $$
 \mathbf{u}_{cmd} = \mathbf{u}_{raw} \cdot \left( \frac{V_0}{V} \right)^2
 $$
 
-where $V_0$ is nominal trim velocity ($30\text{ m/s}$) and $V$ is current true airspeed.
+where $V_0$ is nominal trim velocity ($30\text{ m/s}$) and $ V$ is current true airspeed.
 
 Finally, commands pass through physical actuator saturation limits:
 
@@ -262,7 +262,7 @@ $$
 
 ### Problem Scenario Setup
 
-An aircraft is flying in a **$90°$ Knife-Edge Bank Turn** (measured attitude $q_{meas}$) and receives a setpoint command from the guidance computer to **pitch up by $30°$** (setpoint attitude $q_{sp}$).
+An aircraft is flying in a ** $90°$ Knife-Edge Bank Turn** (measured attitude $q_{meas}$) and receives a setpoint command from the guidance computer to **pitch up by $30°$** (setpoint attitude $ q_{sp}$).
 
 #### Given System Parameters:
 
@@ -272,7 +272,7 @@ $$
 q_{meas} = \begin{bmatrix} \cos(45^{\circ}) \\\\ \sin(45^{\circ}) \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.7071 \\\\ 0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix}
 $$
 
-2. **Target Setpoint Attitude ($q_{sp}$):** Pitching up by $30^{\circ}$ ($\phi = 0^{\circ}, \theta = 30^{\circ}, \psi = 0^{\circ}$):
+2. **Target Setpoint Attitude ($q_{sp}$):** Pitching up by $30^{\circ}$($\phi = 0^{\circ}, \theta = 30^{\circ}, \psi = 0^{\circ}$):
 
 $$
 q_{sp} = \begin{bmatrix} \cos(15^{\circ}) \\\\ 0.0000 \\\\ \sin(15^{\circ}) \\\\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.9659 \\\\ 0.0000 \\\\ 0.2588 \\\\ 0.0000 \end{bmatrix}
@@ -284,13 +284,10 @@ $$
 \boldsymbol{\omega}_{meas} = \begin{bmatrix} 0.0 \\\\ 0.0 \\\\ 0.0 \end{bmatrix} \text{ rad/s}
 $$
 
-4. **Current Airspeed:** $V = 30\text{ m/s}$ (Trim airspeed $V_0 = 30\text{ m/s}$).
+4. **Current Airspeed:** $V = 30\text{ m/s}$(Trim airspeed $ V_0 = 30\text{ m/s}$).
 
 5. **Autopilot Gains:**
-   - **Outer Loop $Q_P$ Gain:** $K_p = 3.5$
-   - **Inner Loop Roll Rate PID Gains:** $K_{P,rate} = 0.5$, $K_{I,rate} = 2.0$, $K_{D,rate} = 0.1$
-   - **Time Step:** $\Delta t = 0.01\text{ s}$
-   - **Accumulated Past Roll Error:** $\sum (e_{\omega,x} \cdot \Delta t) = 0.05\text{ rad}$
+ - **Outer Loop $Q_P $ Gain:**$K_p = 3.5$- **Inner Loop Roll Rate PID Gains:**$ K_{P,rate} = 0.5$, $ K_{I,rate} = 2.0$, $ K_{D,rate} = 0.1$- **Time Step:**$\Delta t = 0.01\text{ s}$- **Accumulated Past Roll Error:**$\sum (e_{\omega,x} \cdot \Delta t) = 0.05\text{ rad}$
 
 ---
 
@@ -340,7 +337,7 @@ $$
 
 #### STEP 4: Compute Outer Loop Target Spin Speeds
 
-Apply the $Q_P$ Master Control Formula with $K_p = 3.5$:
+Apply the $Q_P $ Master Control Formula with$K_p = 3.5$:
 
 $$
 \boldsymbol{\omega}_{sp} = 2 \cdot K_p \cdot \mathbf{q}_{v,err,short}
@@ -397,7 +394,7 @@ I = K_{I,rate} \times \sum (e_{\omega,x} \cdot \Delta t) = 2.0 \times (+0.05) = 
 $$
 
 3. **D Term (Braking Force):**
-   Since current gyro speed $\omega_{x,meas} = 0.0$ and previous gyro speed is $0.0$:
+ Since current gyro speed $\omega_{x,meas} = 0.0$ and previous gyro speed is $0.0$:
 
 $$
 D = -K_{D,rate} \times \left( \frac{0.0 - 0.0}{0.01} \right) = 0.00000
@@ -432,11 +429,11 @@ $$
 ## 4. Results & Simulation Benchmarking
 
 
-The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft simulation across 4 bank angle turn maneuvers: **$30°$,$60°$,$80°$, and $90°$(knife-edge)**.
+The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft simulation across 4 bank angle turn maneuvers: ** $30°$, $60°$, $80°$, and $90°$(knife-edge)**.
 
 ### 4.1 Numerical Performance Comparison Table
 
-| Bank Angle | Controller Architecture | Roll RMSE ($\phi$) | Pitch RMSE ($\theta$) | Yaw RMSE ($\psi$) | Performance Summary |
+| Bank Angle | Controller Architecture | Roll RMSE ($\phi $) | Pitch RMSE ($\theta $) | Yaw RMSE ($\psi$) | Performance Summary |
 | :---: | :--- | :---: | :---: | :---: | :--- |
 | **30° Bank** | Quaternion ($Q_P$) | **1.43°** | **0.26°** | **3.08°** | Smooth tracking, zero cross-coupling. |
 | | Classical Euler PID | 1.43° | 1.55° | 2.70° | Comparable low-angle tracking. |
@@ -472,7 +469,7 @@ The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft si
 
 1. **Low Bank Angles ($30° - 60°$):** Both controllers exhibit good tracking performance. Euler controllers perform adequately when roll angles are small and fixed-body approximations hold true.
 2. **High Bank Angles ($80° - 90°$):** The Euler controller experiences massive performance breakdown. At $90°$ bank, the elevator acts physically as the rudder (controlling yaw) and the rudder acts as the elevator (controlling pitch). Because Euler controllers compute pitch error independently of roll angle, they command elevator deflection when pitch error occurs, accelerating yaw instead of pitch!
-3. **Quaternion Invariance:** The quaternion $Q_P$ controller inherently handles 3D spatial rotations. The pitch tracking error under quaternion control remains nearly constant ($0.26° - 0.27°$) across all bank angles from $30°$ to $90°$, proving total resistance to aerodynamic cross-coupling!
+3. **Quaternion Invariance:** The quaternion $Q_P $ controller inherently handles 3D spatial rotations. The pitch tracking error under quaternion control remains nearly constant ($0.26° - 0.27°$) across all bank angles from $30°$ to $90°$, proving total resistance to aerodynamic cross-coupling!
 
 ---
 
@@ -483,7 +480,7 @@ The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft si
 This project successfully designed, implemented, and validated a non-singular **Quaternion Attitude Controller** for aerobatic fixed-wing drones. By replacing traditional Euler angle loops with a single $Q_P$ quaternion error controller, we achieved:
 - Complete elimination of gimbal lock singularities.
 - Automatic axis decoupling during steep bank ($80°$) and knife-edge ($90°$) flight maneuvers.
-- A **$10\times$ reduction in yaw tracking error** ($3.07°$ vs $30.50°$) during $90°$ bank turns compared to classical Euler PID control.
+- A ** $10\times $ reduction in yaw tracking error** ($3.07°$ vs $30.50°$) during $90°$ bank turns compared to classical Euler PID control.
 
 ### Future Work for Final Evaluation
 As instructed by faculty, for the final project evaluation we will expand our SITL simulation across all four targeted simulation environments:
