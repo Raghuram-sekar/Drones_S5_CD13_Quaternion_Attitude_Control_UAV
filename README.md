@@ -53,31 +53,30 @@ This project implements the quaternion-based attitude control scheme proposed by
 
 ## 2. Methodology & Mathematical Formulation
 
-
 <p align="center">
   <img src="figures/methodology_control_architecture.png" alt="Cascaded Quaternion Control Architecture Diagram" width="850"/>
   <br>
   <em>Figure 2.1: Cascaded Quaternion Attitude Control & Inner-Loop Rate Loop System Architecture.</em>
 </p>
 
-### 2.1 Unit Quaternion Fundamentals
-A quaternion $q \in \mathbb{H}$ is defined as a 4-dimensional hyper-complex number:
+### 2.1 Unit Quaternion Fundamentals & Kinematics
+A unit quaternion $q \in \mathbb{H}$ represents 3D orientation without singularities:
 
 $$
 q = \begin{bmatrix} q_w \\\\ q_x \\\\ q_y \\\\ q_z \end{bmatrix} = q_w + q_x \mathbf{i} + q_y \mathbf{j} + q_z \mathbf{k}
 $$
 
-where $q_w \in \mathbb{R}$ is the scalar component and $\mathbf{q}_v = [q_x, q_y, q_z]^T \in \mathbb{R}^3$ is the vector imaginary part.
+where $q_w \in \mathbb{R}$ is the scalar part and $\mathbf{q}_v = [q_x, q_y, q_z]^T \in \mathbb{R}^3$ is the vector imaginary part.
 
-Unit quaternions satisfy the norm constraint $\|q\| = \sqrt{q_w^2 + q_x^2 + q_y^2 + q_z^2} = 1$, forming the group $Sp(1) \cong SO(3)$.
+Unit quaternions satisfy the unit norm constraint $\|q\| = \sqrt{q_w^2 + q_x^2 + q_y^2 + q_z^2} = 1$, forming the group $Sp(1) \cong SO(3)$.
 
-The **Quaternion Conjugate** $\bar{q}$ is defined as:
+The **Quaternion Conjugate** $\bar{q}$ and **Inverse** $q^{-1}$ (for unit quaternions) are defined as:
 
 $$
-\bar{q} = \begin{bmatrix} q_w \\\\ -q_x \\\\ -q_y \\\\ -q_z \end{bmatrix}
+\bar{q} = \begin{bmatrix} q_w \\\\ -q_x \\\\ -q_y \\\\ -q_z \end{bmatrix}, \quad q^{-1} = \bar{q}
 $$
 
-The **Hamilton Product** ($p \otimes q$) representing successive spatial rotations is:
+The **Hamilton Product** ($p \otimes q$) represents composite spatial rotations:
 
 $$
 p \otimes q = \begin{bmatrix} 
@@ -88,8 +87,31 @@ p_w q_z + p_x q_y - p_y q_x + p_z q_w
 \end{bmatrix}
 $$
 
+The **Direction Cosine Rotation Matrix** $R(q) \in SO(3)$ transforming vectors from the body frame to the inertial frame is:
+
+$$
+R(q) = \begin{bmatrix} 
+q_w^2 + q_x^2 - q_y^2 - q_z^2 & 2(q_x q_y - q_w q_z) & 2(q_x q_z + q_w q_y) \\\\
+2(q_x q_y + q_w q_z) & q_w^2 - q_x^2 + q_y^2 - q_z^2 & 2(q_y q_z - q_w q_x) \\\\
+2(q_x q_z - q_w q_y) & 2(q_y q_z + q_w q_x) & q_w^2 - q_x^2 - q_y^2 + q_z^2 
+\end{bmatrix}
+$$
+
+Conversion from Euler angles $(\phi, \theta, \psi)$ to unit quaternion:
+
+$$
+q = \begin{bmatrix} 
+\cos(\phi/2)\cos(\theta/2)\cos(\psi/2) + \sin(\phi/2)\sin(\theta/2)\sin(\psi/2) \\\\
+\sin(\phi/2)\cos(\theta/2)\cos(\psi/2) - \cos(\phi/2)\sin(\theta/2)\sin(\psi/2) \\\\
+\cos(\phi/2)\sin(\theta/2)\cos(\psi/2) + \sin(\phi/2)\cos(\theta/2)\sin(\psi/2) \\\\
+\cos(\phi/2)\cos(\theta/2)\sin(\psi/2) - \sin(\phi/2)\sin(\theta/2)\cos(\psi/2) 
+\end{bmatrix}
+$$
+
+---
+
 ### 2.2 Attitude Error Quaternion Derivation ($q_{err}$)
-Let $q_{meas}$ denote the measured aircraft attitude quaternion, and $q_{sp}$ denote the target setpoint quaternion. The intrinsic rotation relationship is:
+Let $q_{meas}$ denote the current measured aircraft attitude, and $q_{sp}$ denote the target setpoint quaternion. The intrinsic rotation relationship is:
 
 $$
 q_{sp} = q_{meas} \otimes q_{err}
@@ -101,48 +123,103 @@ $$
 q_{err} = \bar{q}_{meas} \otimes q_{sp}
 $$
 
-### 2.3 Shortest-Path Rotation Resolution
-Because $q$ and $-q$ represent identical spatial rotations (double covering of $SO(3)$), the controller must ensure rotation along the shorter arc ($\le 180^{\circ}$). The condition is evaluated on the scalar component $q_{w,err}$:
+Expanding component-wise:
 
 $$
-q_{err,short} = \begin{cases} -q_{err} & \text{if } q_{w,err} < 0 \\ q_{err} & \text{if } q_{w,err} \ge 0 \end{cases}
+q_{w,err} = q_{w,meas} q_{w,sp} + q_{x,meas} q_{x,sp} + q_{y,meas} q_{y,sp} + q_{z,meas} q_{z,sp}
 $$
+
+$$
+\mathbf{q}_{v,err} = \begin{bmatrix} q_{x,err} \\\\ q_{y,err} \\\\ q_{z,err} \end{bmatrix} = q_{w,meas} \mathbf{q}_{v,sp} - q_{w,sp} \mathbf{q}_{v,meas} - \mathbf{q}_{v,meas} \times \mathbf{q}_{v,sp}
+$$
+
+---
+
+### 2.3 Shortest-Path Rotation & Axis-Angle Resolution
+Because $q$ and $-q$ represent identical physical 3D orientations (double covering of $SO(3)$ by $Sp(1)$), the controller must ensure rotation along the shorter arc ($\le 180^{\circ}$). The scalar component check is:
+
+$$
+q_{err,short} = \begin{cases} -q_{err} & \text{if } q_{w,err} < 0 \\\\ q_{err} & \text{if } q_{w,err} \ge 0 \end{cases}
+$$
+
+In terms of physical axis-angle representation $(\mathbf{e}, \alpha)$:
+
+$$
+q_{w,err} = \cos\left(\frac{\alpha}{2}\right), \quad \mathbf{q}_{v,err} = \mathbf{e} \sin\left(\frac{\alpha}{2}\right)
+$$
+
+where $\alpha$ is the principal rotation error angle and $\mathbf{e}$ is the unit rotation axis.
+
+---
 
 ### 2.4 Outer-Loop Control Law ($Q_P$ Controller)
-Assuming the setpoint quaternion derivative $\dot{q}_{sp}$ is proportional to error with proportional gain $K_p$:
+The rate of change of the setpoint quaternion $\dot{q}_{sp}$ is proportional to the error quaternion via proportional gain $K_p$:
 
 $$
 \dot{q}_{sp} = K_p \cdot q_{err,short}
 $$
 
-The relationship connecting quaternion derivative $\dot{q}$ to body angular rate setpoints $\boldsymbol{\omega}_{sp} = [\omega_{x,sp}, \omega_{y,sp}, \omega_{z,sp}]^T$ is:
+The fundamental kinematic differential equation connecting quaternion derivative $\dot{q}$ to body-frame angular rate setpoints $\boldsymbol{\omega}_{sp} = [\omega_{x,sp}, \omega_{y,sp}, \omega_{z,sp}]^T$ is:
 
 $$
-\boldsymbol{\omega}_{sp} = 2 \, \bar{q}_u \otimes \dot{q}_{sp}
+\dot{q} = \frac{1}{2} q \otimes \begin{bmatrix} 0 \\\\ \boldsymbol{\omega} \end{bmatrix} \implies \boldsymbol{\omega}_{sp} = 2 \, \bar{q}_u \otimes \dot{q}_{sp}
 $$
 
 where $q_u = [1, 0, 0, 0]^T$ is the identity unit quaternion.
 
-Expanding and simplifying yields the outer-loop control law:
+Expanding and simplifying yields the master $Q_P$ outer-loop control law:
 
 $$
-\begin{bmatrix} \omega_{x,sp} \\\\ \omega_{y,sp} \\\\ \omega_{z,sp} \end{bmatrix} = 2 \cdot K_p \cdot \begin{bmatrix} q_{x,err,short} \\\\ q_{y,err,short} \\\\ q_{z,err,short} \end{bmatrix}
+\begin{bmatrix} \omega_{x,sp} \\\\ \omega_{y,sp} \\\\ \omega_{z,sp} \end{bmatrix} = 2 \cdot K_p \cdot \text{sgn}(q_{w,err}) \cdot \begin{bmatrix} q_{x,err} \\\\ q_{y,err} \\\\ q_{z,err} \end{bmatrix}
 $$
 
-### 2.5 Inner-Loop Rate PID & Aerodynamic Scaling
-The angular rate error $\mathbf{e}_\omega = \boldsymbol{\omega}_{sp} - \boldsymbol{\omega}_{meas}$ is processed by 3-axis PID rate controllers:
+---
+
+### 2.5 Inner-Loop Rate PID & Aerodynamic Airspeed Scaling
+The body angular rate error $\mathbf{e}_\omega = \boldsymbol{\omega}_{sp} - \boldsymbol{\omega}_{meas}$ is processed by 3-axis PID rate controllers:
 
 $$
-\mathbf{u}_{raw} = \mathbf{K}_{P,rate} \mathbf{e}_\omega + \mathbf{K}_{I,rate} \int \mathbf{e}_\omega dt - \mathbf{K}_{D,rate} \boldsymbol{\omega}_{meas}
+\mathbf{e}_\omega = \begin{bmatrix} e_{\omega,x} \\\\ e_{\omega,y} \\\\ e_{\omega,z} \end{bmatrix} = \begin{bmatrix} \omega_{x,sp} - \omega_{x,meas} \\\\ \omega_{y,sp} - \omega_{y,meas} \\\\ \omega_{z,sp} - \omega_{z,meas} \end{bmatrix}
 $$
 
-To preserve control authority across varying velocity flight regimes, commands are scaled by dynamic pressure ($V^2$):
+The raw 3-axis control output $\mathbf{u}_{raw}$ combines Proportional, Integral, and Derivative terms:
+
+$$
+\mathbf{u}_{raw} = \mathbf{K}_{P,rate} \mathbf{e}_\omega + \mathbf{K}_{I,rate} \int_0^t \mathbf{e}_\omega (\tau) d\tau - \mathbf{K}_{D,rate} \frac{d\boldsymbol{\omega}_{meas}}{dt}
+$$
+
+To compensate for varying dynamic pressure $q_{bar} = \frac{1}{2}\rho V^2$ across different airspeed regimes, control surface commands are scaled by dynamic pressure ratio:
 
 $$
 \mathbf{u}_{cmd} = \mathbf{u}_{raw} \cdot \left( \frac{V_0}{V} \right)^2
 $$
 
-where $V_0$ is nominal trim velocity and $V$ is true airspeed. Output deflections control Aileron ($\delta_A$), Elevator ($\delta_H$), and Rudder ($\delta_V$).
+where $V_0$ is nominal trim velocity ($30\text{ m/s}$) and $V$ is current true airspeed.
+
+Finally, commands pass through physical actuator saturation limits:
+
+$$
+\delta_A = \text{clip}(u_{cmd,x}, -1.0, +1.0), \quad \delta_H = \text{clip}(u_{cmd,y}, -1.0, +1.0), \quad \delta_V = \text{clip}(u_{cmd,z}, -1.0, +1.0)
+$$
+
+---
+
+### 2.6 6-DOF Aircraft Rigid-Body Dynamic Equations
+The nonlinear aircraft dynamics are integrated using 6-DOF equations of motion:
+
+1. **Translational Equations (Newton's Second Law):**
+
+$$
+\begin{bmatrix} \dot{u} \\\\ \dot{v} \\\\ \dot{w} \end{bmatrix} = \begin{bmatrix} rv - qw \\\\ pw - ru \\\\ qu - pv \end{bmatrix} + \frac{1}{m} \begin{bmatrix} F_x \\\\ F_y \\\\ F_z \end{bmatrix} + g \cdot R(q)^T \begin{bmatrix} 0 \\\\ 0 \\\\ 1 \end{bmatrix}
+$$
+
+2. **Rotational Equations (Euler's Equations of Motion):**
+
+$$
+\begin{bmatrix} \dot{p} \\\\ \dot{q} \\\\ \dot{r} \end{bmatrix} = \mathbf{J}^{-1} \left( \begin{bmatrix} L_{aero} \\\\ M_{aero} \\\\ N_{aero} \end{bmatrix} - \begin{bmatrix} p \\\\ q \\\\ r \end{bmatrix} \times \mathbf{J} \begin{bmatrix} p \\\\ q \\\\ r \end{bmatrix} \right)
+$$
+
+where $\mathbf{J}$ is the aircraft inertia tensor, $[u, v, w]^T$ are body linear velocities, $[p, q, r]^T = \boldsymbol{\omega}_{meas}$ are body angular rates, $[F_x, F_y, F_z]^T$ are aerodynamic forces, and $[L, M, N]^T$ are aerodynamic moments.
 
 ---
 
