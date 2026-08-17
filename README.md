@@ -36,44 +36,66 @@ Modern unmanned aerial vehicles (UAVs) and high-performance strike drones are in
 Flight attitude control forms the core inner loop of an aircraft autopilot system. Modern unmanned aerial vehicles (UAVs), tactical aerobatic drones, and high-performance strike aircraft are increasingly required to execute aggressive 3D spatial maneuvers—including $90^{\circ}$ knife-edge bank turns, vertical nose-up climbs, inverted flight, and high-g split-S evasions.
 
 Historically, standard autopilot architectures (such as legacy ArduPilot or PX4 configurations) express aircraft 3D orientation using **3 Euler angles**:
-- **Roll ($\phi$):** Tilting the wings left or right.
-- **Pitch ($\theta$):** Pointing the nose up or down.
-- **Yaw ($\psi$):** Pointing the nose left or right (heading).
+- **Roll ($\phi$):** Tilting the wings left or right around the body longitudinal axis ($\mathbf{X}_b$).
+- **Pitch ($\theta$):** Pointing the nose up or down around the body lateral axis ($\mathbf{Y}_b$).
+- **Yaw ($\psi$):** Pointing the nose left or right around the body vertical axis ($\mathbf{Z}_b$).
 
-While Euler angles are easy for human pilots to read on a dashboard, they suffer from **3 catastrophic mathematical and physical flaws** during aggressive drone maneuvers.
+While Euler angles provide an intuitive 3-angle representation for dashboard displays, they suffer from **3 major mathematical and aerodynamic flaws** during aggressive drone flight.
 
 ---
 
 ### 1.2 The Problem: Why Traditional Euler Angles Fail
 
 #### ❌ Flaw 1: Gimbal Lock Singularity ($\theta = \pm 90^{\circ}$)
-- **Physical Analogy:** Think of a 3-ring mechanical gyroscope mounted on gimbals. If the middle pitch ring rotates by $90^{\circ}$, the outer roll ring and inner yaw ring line up on top of the same axis. Suddenly, the system loses a degree of freedom—the 3D gyroscope collapses into a 2D plane!
-- **Mathematical Reality:** The kinematic differential equation mapping body angular rates $(p, q, r)$ to Euler angle rates $(\dot{\phi}, \dot{\theta}, \dot{\psi})$ contains tangent and secant terms:
+
+When an aircraft pitches vertically to $\theta = \pm 90^{\circ}$, the Roll axis ($\mathbf{X}_b$) rotates into alignment with the Yaw axis ($\mathbf{Z}_b$). As a result, rotations around Roll and Yaw produce the exact same spatial motion, causing a **loss of 1 rotational degree of freedom** (collapsing 3D orientation space into a 2D plane).
+
+<p align="center">
+  <img src="figures/fig_gimbal_lock_diagram.png" alt="Gimbal Lock Axis Alignment Diagram" width="850"/>
+  <br>
+  <em>Figure 1.1: 3D Axis Alignment during Gimbal Lock (\theta = 90^\circ). Normal flight (Left) provides 3 orthogonal degrees of freedom; at pitch \theta = 90^\circ (Right), the Roll axis (\phi) aligns with the Yaw axis (\psi).</em>
+</p>
+
+Mathematically, the kinematic differential equation mapping body angular rates $(p, q, r)$ to Euler angle rates $(\dot{\phi}, \dot{\theta}, \dot{\psi})$ contains tangent and secant functions of pitch angle $\theta$:
 
 $$
 \begin{bmatrix} \dot{\phi} \\\\ \dot{\theta} \\\\ \dot{\psi} \end{bmatrix} = \begin{bmatrix} 1 & \sin\phi \tan\theta & \cos\phi \tan\theta \\\\ 0 & \cos\phi & -\sin\phi \\\\ 0 & \sin\phi \sec\theta & \cos\phi \sec\theta \end{bmatrix} \begin{bmatrix} p \\\\ q \\\\ r \end{bmatrix}
 $$
 
-When pitch reaches vertical ($\theta = \pm 90^{\circ}$), $\tan(90^{\circ}) \to \infty$ and $\sec(90^{\circ}) \to \infty$. The flight control computer encounters a **divide-by-zero overflow** and crashes!
+As $\theta \to \pm 90^{\circ}$, $\tan(90^{\circ}) \to \infty$ and $\sec(90^{\circ}) \to \infty$. The flight control computer encounters an unavoidable **divide-by-zero numerical overflow** and crashes.
+
+---
 
 #### ❌ Flaw 2: Control Surface Cross-Coupling at Steep Bank Angles ($80^{\circ} - 90^{\circ}$)
-- **Physical Analogy:** Imagine driving a car. Normally, turning the steering wheel turns the car left or right on flat ground. Now imagine tilting the entire car $90^{\circ}$ on its side onto two wheels (knife-edge)! Now, turning the steering wheel moves the car up/down into the air instead of left/right!
-- **On an Aircraft:** At $90^{\circ}$ bank, the physical elevator (tail flap) is vertical, so pulling the elevator turns the plane **horizontally (Yaw)** instead of lifting the nose (Pitch). Conversely, the physical rudder is horizontal, so moving the rudder lifts the nose **vertically (Pitch)**!
-- **Euler PID Failure:** Classical Euler PID controllers have 3 separate, blind loops (Roll PID, Pitch PID, Yaw PID). When pitch error occurs at $90^{\circ}$ bank, the blind Pitch PID loop pulls the Elevator—unwittingly causing violent yaw rates and spinning the aircraft out of control!
 
-#### ❌ Flaw 3: Trigonometric Computational Overhead
-Euler transformations require continuous evaluation of expensive transcendental trigonometric functions ($\sin, \cos, \tan, \sec, \arcsin, \arctan$) at every 100 Hz autopilot tick, causing CPU execution latency on embedded microcontrollers.
+In conventional level flight ($\phi = 0^{\circ}$), elevator deflection generates pitching moment around the lateral axis, while rudder deflection generates yawing moment around the vertical axis. However, when an aircraft banks $90^{\circ}$ into knife-edge flight, the physical control surfaces rotate $90^{\circ}$ relative to the inertial gravity vector:
+- **Elevator (Vertical Flap):** Deflecting the vertical elevator produces an aerodynamic force vector in the horizontal plane, creating **Yawing moment** instead of Pitching moment.
+- **Rudder (Horizontal Flap):** Deflecting the horizontal rudder produces an aerodynamic force vector in the vertical plane, creating **Pitching moment** instead of Yawing moment.
+
+<p align="center">
+  <img src="figures/fig_cross_coupling_diagram.png" alt="Control Surface Cross-Coupling Diagram" width="850"/>
+  <br>
+  <em>Figure 1.2: Control Surface Cross-Coupling during 90^\circ Knife-Edge Flight. Elevator deflection produces horizontal Yawing moment, while Rudder deflection produces vertical Pitching moment.</em>
+</p>
+
+Classical Euler PID controllers maintain 3 independent, decoupled control loops (Roll PID, Pitch PID, Yaw PID). When a pitch error occurs at $90^{\circ}$ bank, the blind Pitch PID loop deflects the Elevator—unwittingly generating massive horizontal yawing forces that spin the aircraft out of control.
+
+---
+
+#### ❌ Flaw 3: Computational Overhead of Transcendental Trigonometry
+
+Euler transformations require continuous evaluation of expensive transcendental trigonometric functions ($\sin, \cos, \tan, \sec, \arcsin, \arctan$) at every 100 Hz autopilot execution tick, introducing CPU computational latency on resource-constrained embedded microcontrollers.
 
 ---
 
 ### 1.3 The Solution: How We Proceed with Quaternions ($Q_P$ Controller)
 
-To solve all 3 flaws, this project implements a non-singular **Quaternion Proportional ($Q_P$) Attitude Controller** based on the formulation by Michał Gołąbek et al. (MDPI Electronics 2022).
+To overcome all 3 limitations, this project implements a non-singular **Quaternion Proportional ($Q_P$) Attitude Controller** based on the formulation by Michał Gołąbek et al. (MDPI Electronics 2022).
 
-#### 🛡️ How Quaternions Fix Every Flaw:
-1. **Four-Component Hyper-Complex Numbers:** Quaternions represent 3D orientation using 4 parameters ($q = [q_w, q_x, q_y, q_z]^T$) constrained to a 4D unit sphere ($Sp(1) \cong SO(3)$). Because there are 4 parameters for 3 rotational degrees of freedom, there is **zero division** and **zero singularity (No Gimbal Lock)** at any angle!
-2. **Unified 3D Spatial Geometry:** The $Q_P$ controller calculates rotation in 3D body space as one single vector. At $80^{\circ} - 90^{\circ}$ bank, it automatically recognizes that the Elevator moves Yaw and the Rudder moves Pitch, routing the control signals to the correct physical surfaces without needing any complex gain scheduling!
-3. **Pure Algebraic Arithmetic:** Quaternion calculations use only additions, subtractions, and multiplications (Hamilton Product)—completely eliminating trigonometric function evaluations during runtime!
+#### 🛡️ How Quaternions Eliminate Every Flaw:
+1. **Four-Component Hyper-Complex Representation:** Quaternions parameterize 3D rotation using 4 scalar values ($q = [q_w, q_x, q_y, q_z]^T$) constrained to a 4D unit hypersphere ($Sp(1) \cong SO(3)$). Because 4 parameters represent 3 rotational degrees of freedom, there are **no division operations** and **zero singularities (No Gimbal Lock)** at any pitch angle.
+2. **Unified 3D Spatial Geometry:** The $Q_P$ controller computes rotation error as a single 3D vector in body space. At $80^{\circ} - 90^{\circ}$ bank angles, it automatically routes control signals to the correct physical surfaces (Rudder for pitch, Elevator for yaw) without requiring gain scheduling.
+3. **Pure Algebraic Computation:** Quaternion attitude kinematics rely exclusively on vector cross products, dot products, and scalar multiplications (Hamilton Product)—completely eliminating transcendental trigonometric function calls during flight control loops.
 
 ---
 
