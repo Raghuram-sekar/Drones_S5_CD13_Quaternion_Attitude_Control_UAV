@@ -125,13 +125,13 @@ An aircraft is flying in a **$90^{\circ}$ Knife-Edge Bank Turn** (measured attit
 1. **Measured Aircraft Attitude ($q_{meas}$):** Banked at $90^{\circ}$ roll ($\phi = 90^{\circ}, \theta = 0^{\circ}, \psi = 0^{\circ}$):
 
 $$
-q_{meas} = \begin{bmatrix} \cos(45^{\circ}) \\ \sin(45^{\circ}) \\ 0 \\ 0 \end{bmatrix} = \begin{bmatrix} 0.7071 \\ 0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix}
+q_{meas} = \begin{bmatrix} \cos(45^{\circ}) \\ \sin(45^{\circ}) \\ 0.0000 \\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.7071 \\ 0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix}
 $$
 
 2. **Target Setpoint Attitude ($q_{sp}$):** Pitching up by $30^{\circ}$ ($\phi = 0^{\circ}, \theta = 30^{\circ}, \psi = 0^{\circ}$):
 
 $$
-q_{sp} = \begin{bmatrix} \cos(15^{\circ}) \\ 0 \\ \sin(15^{\circ}) \\ 0 \end{bmatrix} = \begin{bmatrix} 0.9659 \\ 0.0000 \\ 0.2588 \\ 0.0000 \end{bmatrix}
+q_{sp} = \begin{bmatrix} \cos(15^{\circ}) \\ 0.0000 \\ \sin(15^{\circ}) \\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.9659 \\ 0.0000 \\ 0.2588 \\ 0.0000 \end{bmatrix}
 $$
 
 3. **Current Measured Gyro Speeds:** Currently stationary:
