@@ -148,7 +148,6 @@ where $V_0$ is nominal trim velocity and $V$ is true airspeed. Output deflection
 
 ## 3. Step-by-Step Numerical Toy Example
 
-**Keywords:** `Numerical Verification`, `Toy Example`, `Knife-Edge Orientation`, `Quaternion Arithmetic`, `Rate Setpoints`, `Inner Rate PID`, `Airspeed Scaling`
 
 ### Problem Scenario Setup
 
