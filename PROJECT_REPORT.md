@@ -36,22 +36,50 @@ In 6-DOF dynamic flight simulations modeling an Extra 330SC aircraft, the quater
 
 ---
 
-## 1. Introduction & Background
+## 1. Introduction & Problem Formulation
 
+### 1.1 Motivation & Background
+Flight attitude control forms the core inner loop of an aircraft autopilot system. Modern unmanned aerial vehicles (UAVs), tactical aerobatic drones, and high-performance strike aircraft are increasingly required to execute aggressive 3D spatial maneuvers—including $90^{\circ}$ knife-edge bank turns, vertical nose-up climbs, inverted flight, and high-g split-S evasions.
 
-Flight attitude control forms the core inner loop of an aircraft autopilot system. While Euler angles provide an intuitive visualization of roll ($\phi$), pitch ($\theta$), and yaw ($\psi$), they introduce mathematical singularities and control degradation under aggressive maneuvering:
+Historically, standard autopilot architectures (such as legacy ArduPilot or PX4 configurations) express aircraft 3D orientation using **3 Euler angles**:
+- **Roll ($\phi$):** Tilting the wings left or right.
+- **Pitch ($\theta$):** Pointing the nose up or down.
+- **Yaw ($\psi$):** Pointing the nose left or right (heading).
 
-1. **Gimbal Lock Singularity:** At $\theta = \pm 90^{\circ}$, the matrix transforming body angular rates $(p, q, r)$ to Euler angle rates $(\dot{\phi}, \dot{\theta}, \dot{\psi})$ becomes singular:
+While Euler angles are easy for human pilots to read on a dashboard, they suffer from **3 catastrophic mathematical and physical flaws** during aggressive drone maneuvers.
+
+---
+
+### 1.2 The Problem: Why Traditional Euler Angles Fail
+
+#### ❌ Flaw 1: Gimbal Lock Singularity ($\theta = \pm 90^{\circ}$)
+- **Physical Analogy:** Think of a 3-ring mechanical gyroscope mounted on gimbals. If the middle pitch ring rotates by $90^{\circ}$, the outer roll ring and inner yaw ring line up on top of the same axis. Suddenly, the system loses a degree of freedom—the 3D gyroscope collapses into a 2D plane!
+- **Mathematical Reality:** The kinematic differential equation mapping body angular rates $(p, q, r)$ to Euler angle rates $(\dot{\phi}, \dot{\theta}, \dot{\psi})$ contains tangent and secant terms:
 
 $$
 \begin{bmatrix} \dot{\phi} \\\\ \dot{\theta} \\\\ \dot{\psi} \end{bmatrix} = \begin{bmatrix} 1 & \sin\phi \tan\theta & \cos\phi \tan\theta \\\\ 0 & \cos\phi & -\sin\phi \\\\ 0 & \sin\phi \sec\theta & \cos\phi \sec\theta \end{bmatrix} \begin{bmatrix} p \\\\ q \\\\ r \end{bmatrix}
 $$
 
-As $\theta \to \pm 90^{\circ}$, $\tan\theta \to \infty$ and $\sec\theta \to \infty$, causing numeric overflow and control failure.
+When pitch reaches vertical ($\theta = \pm 90^{\circ}$), $\tan(90^{\circ}) \to \infty$ and $\sec(90^{\circ}) \to \infty$. The flight control computer encounters a **divide-by-zero overflow** and crashes!
 
-2. **Control Surface Cross-Coupling:** When an aircraft banks at $90^{\circ}$ (knife-edge orientation), the physical elevator produces yawing moment relative to the inertial frame, and the rudder produces pitching moment. Classical Euler PID controllers attempt to correct pitch error by deflecting the elevator, causing unexpected yaw acceleration.
+#### ❌ Flaw 2: Control Surface Cross-Coupling at Steep Bank Angles ($80^{\circ} - 90^{\circ}$)
+- **Physical Analogy:** Imagine driving a car. Normally, turning the steering wheel turns the car left or right on flat ground. Now imagine tilting the entire car $90^{\circ}$ on its side onto two wheels (knife-edge)! Now, turning the steering wheel moves the car up/down into the air instead of left/right!
+- **On an Aircraft:** At $90^{\circ}$ bank, the physical elevator (tail flap) is vertical, so pulling the elevator turns the plane **horizontally (Yaw)** instead of lifting the nose (Pitch). Conversely, the physical rudder is horizontal, so moving the rudder lifts the nose **vertically (Pitch)**!
+- **Euler PID Failure:** Classical Euler PID controllers have 3 separate, blind loops (Roll PID, Pitch PID, Yaw PID). When pitch error occurs at $90^{\circ}$ bank, the blind Pitch PID loop pulls the Elevator—unwittingly causing violent yaw rates and spinning the aircraft out of control!
 
-To overcome these shortcomings, this project implements a unit quaternion attitude control architecture as described by Michał Gołąbek et al. (MDPI Electronics 2022).
+#### ❌ Flaw 3: Trigonometric Computational Overhead
+Euler transformations require continuous evaluation of expensive transcendental trigonometric functions ($\sin, \cos, \tan, \sec, \arcsin, \arctan$) at every 100 Hz autopilot tick, causing CPU execution latency on embedded microcontrollers.
+
+---
+
+### 1.3 The Solution: How We Proceed with Quaternions ($Q_P$ Controller)
+
+To solve all 3 flaws, this project implements a non-singular **Quaternion Proportional ($Q_P$) Attitude Controller** based on the formulation by Michał Gołąbek et al. (MDPI Electronics 2022).
+
+#### 🛡️ How Quaternions Fix Every Flaw:
+1. **Four-Component Hyper-Complex Numbers:** Quaternions represent 3D orientation using 4 parameters ($q = [q_w, q_x, q_y, q_z]^T$) constrained to a 4D unit sphere ($Sp(1) \cong SO(3)$). Because there are 4 parameters for 3 rotational degrees of freedom, there is **zero division** and **zero singularity (No Gimbal Lock)** at any angle!
+2. **Unified 3D Spatial Geometry:** The $Q_P$ controller calculates rotation in 3D body space as one single vector. At $80^{\circ} - 90^{\circ}$ bank, it automatically recognizes that the Elevator moves Yaw and the Rudder moves Pitch, routing the control signals to the correct physical surfaces without needing any complex gain scheduling!
+3. **Pure Algebraic Arithmetic:** Quaternion calculations use only additions, subtractions, and multiplications (Hamilton Product)—completely eliminating trigonometric function evaluations during runtime!
 
 ---
 
