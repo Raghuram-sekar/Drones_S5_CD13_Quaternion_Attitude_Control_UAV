@@ -27,13 +27,11 @@
 ### Abstract
 Modern unmanned aerial vehicles (UAVs) and high-performance strike drones are increasingly required to execute aggressive spatial maneuvers, including steep bank turns ($80^{\circ} - 90^{\circ}$), vertical climbs, and knife-edge flights. Traditional attitude control architectures relying on **Euler angles** ($\phi, \theta, \psi$) suffer from inherent mathematical singularities (gimbal lock at $\theta = \pm 90^{\circ}$) and catastrophic control surface cross-coupling (where elevators inadvertently control yaw and rudders control pitch). This project presents a non-singular **Quaternion Proportional ($Q_P$) Attitude Controller** cascaded with a 3-axis inner-loop angular rate PID controller. Using unit quaternion kinematics, the controller guarantees non-singular, shortest-path 3D attitude tracking across full spatial rotations without trigonometric overhead. The system is validated in a 6-DOF dynamic Software-in-the-Loop (SITL) simulation environment modeling an aerobatic aircraft (Extra 330SC). Comparative benchmarks against conventional Euler PID controllers across $30^{\circ}, 60^{\circ}, 80^{\circ},$ and $90^{\circ}$ bank maneuvers demonstrate that the quaternion controller completely eliminates cross-coupling error, reducing tracking RMSE at $90^{\circ}$ bank from $30.50^{\circ}$ (Euler) to $3.07^{\circ}$ (Quaternion).
 
-**Keywords:** `Attitude Control`, `Unit Quaternions`, `Gimbal Lock`, `Aerobatic UAV`, `Cross-Coupling`, `SITL Simulation`, `Shortest-Path SLERP`, `Cascaded PID`
 
 ---
 
 ## 1. Introduction
 
-**Keywords:** `Avionics`, `Euler Angle Limitations`, `Singularity Avoidance`, `Fixed-Wing Flight Control`, `Non-Linear Kinematics`
 
 Flight attitude control is a cornerstone of autonomous aerial robotics. Conventional autopilot systems (such as standard ArduPilot or PX4 configurations) traditionally express aircraft orientation using **Euler angles** (Roll $\phi$, Pitch $\theta$, Yaw $\psi$). While intuitive for pilot display interfaces, Euler angles introduce severe mathematical degradation during extreme aerobatic or combat maneuvers:
 
@@ -55,7 +53,6 @@ This project implements the quaternion-based attitude control scheme proposed by
 
 ## 2. Methodology & Mathematical Formulation
 
-**Keywords:** `Quaternion Algebra`, `Hamilton Product`, `Attitude Error`, `Axis-Angle Representation`, `Shortest Arc`, `Airspeed Scaling`
 
 <p align="center">
   <img src="figures/methodology_control_architecture.png" alt="Cascaded Quaternion Control Architecture Diagram" width="850"/>
@@ -151,7 +148,6 @@ where $V_0$ is nominal trim velocity and $V$ is true airspeed. Output deflection
 
 ## 3. Step-by-Step Numerical Toy Example
 
-**Keywords:** `Numerical Verification`, `Toy Example`, `Knife-Edge Orientation`, `Quaternion Arithmetic`, `Rate Setpoints`, `Inner Rate PID`, `Airspeed Scaling`
 
 ### Problem Scenario Setup
 
@@ -323,7 +319,6 @@ $$
 
 ## 4. Results & Simulation Benchmarking
 
-**Keywords:** `SITL Benchmarking`, `Tracking RMSE`, `Knife-Edge Turn`, `Cross-Coupling Analysis`, `Comparative Plots`
 
 The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft simulation across 4 bank angle turn maneuvers: **$30^{\circ}$, $60^{\circ}$, $80^{\circ}$, and $90^{\circ}$ (knife-edge)**.
 
@@ -371,7 +366,6 @@ The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft si
 
 ## 6. Conclusion & Future Work
 
-**Keywords:** `Conclusion`, `Non-Singular Control`, `Autopilot Integration`, `Multi-Physics Simulation`, `ArduPilot/PX4 Plugin`
 
 ### Conclusion
 This project successfully designed, implemented, and validated a non-singular **Quaternion Attitude Controller** for aerobatic fixed-wing drones. By replacing traditional Euler angle loops with a single $Q_P$ quaternion error controller, we achieved:
