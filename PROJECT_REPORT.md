@@ -118,47 +118,176 @@ $$
 
 ## 3. Step-by-Step Numerical Toy Example
 
-**Keywords:** `Toy Example`, `Knife-Edge Orientation`, `Quaternion Step-by-Step Calculation`
+**Keywords:** `Numerical Verification`, `Toy Example`, `Knife-Edge Orientation`, `Quaternion Arithmetic`, `Rate Setpoints`, `Inner Rate PID`, `Airspeed Scaling`
 
-### Scenario Setup:
-An aircraft is operating in a $90^{\circ}$ knife-edge bank orientation ($q_{meas}$) and receives a setpoint command to pitch up by $30^{\circ}$ ($q_{sp}$). Controller gain $K_p = 3.5$.
+### Problem Scenario Setup
 
-1. **Input Quaternions:**
+An aircraft is flying in a **$90^{\circ}$ Knife-Edge Bank Turn** (measured attitude $q_{meas}$) and receives a setpoint command from the guidance computer to **pitch up by $30^{\circ}$** (setpoint attitude $q_{sp}$).
+
+#### Given System Parameters:
+
+1. **Measured Aircraft Attitude ($q_{meas}$):** Banked at $90^{\circ}$ roll ($\phi = 90^{\circ}, \theta = 0^{\circ}, \psi = 0^{\circ}$):
 
 $$
-q_{meas} = \begin{bmatrix} 0.7071 \\ 0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix}, \quad q_{sp} = \begin{bmatrix} 0.9659 \\ 0.0000 \\ 0.2588 \\ 0.0000 \end{bmatrix}
+q_{meas} = \begin{bmatrix} \cos(45^{\circ}) \\ \sin(45^{\circ}) \\ 0 \\ 0 \end{bmatrix} = \begin{bmatrix} 0.7071 \\ 0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix}
 $$
 
-2. **Conjugate Evaluation:**
+2. **Target Setpoint Attitude ($q_{sp}$):** Pitching up by $30^{\circ}$ ($\phi = 0^{\circ}, \theta = 30^{\circ}, \psi = 0^{\circ}$):
+
+$$
+q_{sp} = \begin{bmatrix} \cos(15^{\circ}) \\ 0 \\ \sin(15^{\circ}) \\ 0 \end{bmatrix} = \begin{bmatrix} 0.9659 \\ 0.0000 \\ 0.2588 \\ 0.0000 \end{bmatrix}
+$$
+
+3. **Current Measured Gyro Speeds:** Currently stationary:
+
+$$
+\boldsymbol{\omega}_{meas} = \begin{bmatrix} 0.0 \\ 0.0 \\ 0.0 \end{bmatrix} \text{ rad/s}
+$$
+
+4. **Current Airspeed:** $V = 30\text{ m/s}$ (Trim airspeed $V_0 = 30\text{ m/s}$).
+
+5. **Autopilot Gains:**
+   - Outer Loop $Q_P$ Gain: $K_p = 3.5$
+   - Inner Loop Roll Rate PID Gains: $K_{P,rate} = 0.5$, $K_{I,rate} = 2.0$, $K_{D,rate} = 0.1$
+   - Time Step: $\Delta t = 0.01\text{ s}$
+   - Accumulated Past Roll Error: $\sum (e_{\omega,x} \cdot \Delta t) = 0.05\text{ rad}$
+
+---
+
+### ─── OUTER LOOP ($Q_P$ CONTROLLER) ───
+
+#### STEP 1: Compute Measured Quaternion Conjugate
+
+Flip the imaginary vector signs of $q_{meas}$ to create the conjugate:
 
 $$
 \bar{q}_{meas} = \begin{bmatrix} 0.7071 \\ -0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix}
 $$
 
-3. **Error Quaternion Calculation:**
+#### STEP 2: Compute Attitude Error Quaternion
+
+Execute the Hamilton Product ($q_{err} = \bar{q}_{meas} \otimes q_{sp}$):
 
 $$
-q_{err} = \bar{q}_{meas} \otimes q_{sp} = \begin{bmatrix} 0.6830 \\ -0.6830 \\ 0.1830 \\ -0.1830 \end{bmatrix}
+q_{err} = \begin{bmatrix} 0.7071 \\ -0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix} \otimes \begin{bmatrix} 0.9659 \\ 0.0000 \\ 0.2588 \\ 0.0000 \end{bmatrix}
 $$
 
-4. **Shortest-Path Check:**
-   $q_{w,err} = 0.6830 \ge 0 \implies q_{err,short} = [0.6830, -0.6830, 0.1830, -0.1830]^T$
-
-5. **Angular Rate Setpoint Outputs:**
+Expanding the 4 components:
 
 $$
-\omega_{x,sp} = 2 \cdot 3.5 \cdot (-0.6830) = -4.7811 \text{ rad/s } (-273.94^{\circ}/\text{s})
-$$
-
-$$
-\omega_{y,sp} = 2 \cdot 3.5 \cdot (0.1830) = +1.2811 \text{ rad/s } (+73.40^{\circ}/\text{s})
+q_{w,err} = (0.7071)(0.9659) - (-0.7071)(0.0) - (0)(0.2588) - (0)(0) = 0.6830
 $$
 
 $$
-\omega_{z,sp} = 2 \cdot 3.5 \cdot (-0.1830) = -1.2811 \text{ rad/s } (-73.40^{\circ}/\text{s})
+q_{x,err} = (0.7071)(0.0) + (-0.7071)(0.9659) + (0)(0) - (0)(0.2588) = -0.6830
+$$
+
+$$
+q_{y,err} = (0.7071)(0.2588) - (-0.7071)(0) + (0)(0.9659) + (0)(0) = 0.1830
+$$
+
+$$
+q_{z,err} = (0.7071)(0) + (-0.7071)(0.2588) - (0)(0) + (0)(0.9659) = -0.1830
+$$
+
+Resulting Error Quaternion:
+
+$$
+q_{err} = \begin{bmatrix} 0.6830 \\ -0.6830 \\ 0.1830 \\ -0.1830 \end{bmatrix}
+$$
+
+#### STEP 3: Shortest-Path Arc Check
+
+Check the scalar component $q_{w,err}$:
+- Since $q_{w,err} = 0.6830 \ge 0$, no sign inversion is needed!
+
+$$
+q_{err,short} = \begin{bmatrix} 0.6830 \\ -0.6830 \\ 0.1830 \\ -0.1830 \end{bmatrix}
+$$
+
+#### STEP 4: Compute Outer Loop Target Spin Speeds
+
+Apply the $Q_P$ Master Control Formula ($\boldsymbol{\omega}_{sp} = 2 \cdot K_p \cdot \mathbf{q}_{v,err,short}$) with $K_p = 3.5$:
+
+- **Target Roll Spin Speed ($\omega_{x,sp}$):**
+
+$$
+\omega_{x,sp} = 2 \times 3.5 \times (-0.6830) = -4.7811\text{ rad/s } (-273.94^{\circ}/\text{s})
+$$
+
+- **Target Pitch Spin Speed ($\omega_{y,sp}$):**
+
+$$
+\omega_{y,sp} = 2 \times 3.5 \times (+0.1830) = +1.2811\text{ rad/s } (+73.40^{\circ}/\text{s})
+$$
+
+- **Target Yaw Spin Speed ($\omega_{z,sp}$):**
+
+$$
+\omega_{z,sp} = 2 \times 3.5 \times (-0.1830) = -1.2811\text{ rad/s } (-73.40^{\circ}/\text{s})
+$$
+
+> 🔗 **Outer Loop Output:** The Outer Loop outputs target spin speeds $\boldsymbol{\omega}_{sp} = [-4.7811, +1.2811, -1.2811]^T \text{ rad/s}$ down to the Inner Loop!
+
+---
+
+### ─── INNER LOOP (3-AXIS RATE PID CONTROLLER) ───
+
+Follow the **Roll Axis ($x$)** through the Inner Rate PID Controller:
+
+#### STEP 5: Calculate Roll Rate Error
+
+$$
+e_{\omega,x} = \omega_{x,sp} - \omega_{x,meas} = -4.7811 - 0.0 = -4.7811\text{ rad/s}
+$$
+
+#### STEP 6: Compute the 3 Individual PID Terms (Roll Axis)
+
+1. **P Term (Instant Proportional Push):**
+
+$$
+P = K_{P,rate} \times e_{\omega,x} = 0.5 \times (-4.7811) = -2.39055
+$$
+
+2. **I Term (Accumulated Wind/Bias Fixer):**
+
+$$
+I = K_{I,rate} \times \sum (e_{\omega,x} \cdot \Delta t) = 2.0 \times (+0.05) = +0.10000
+$$
+
+3. **D Term (Braking Force):**
+   Since current gyro speed $\omega_{x,meas} = 0.0$ and previous gyro speed is $0.0$:
+
+$$
+D = -K_{D,rate} \times \left( \frac{0.0 - 0.0}{0.01} \right) = 0.00000
+$$
+
+4. **Combine Raw PID Output ($u_{raw}$):**
+
+$$
+u_{raw} = P + I + D = -2.39055 + 0.10000 + 0.00000 = -2.29055
+$$
+
+#### STEP 7: Apply Dynamic Airspeed Scaling & Output Flap Command
+
+To account for flight speed $V = 30\text{ m/s}$ and trim speed $V_0 = 30\text{ m/s}$:
+
+$$
+\text{Speed Scale} = \left( \frac{V_0}{V} \right)^2 = \left( \frac{30}{30} \right)^2 = 1.0
+$$
+
+$$
+u_{cmd} = u_{raw} \times 1.0 = -2.29055\text{ rad}
+$$
+
+Finally, pass through actuator saturation limits (maximum aileron deflection command $\pm 1.0$ normalized):
+
+$$
+\delta_A = \text{clip}(-2.29055, -1.0, +1.0) = -1.0000 \quad (\text{Maximum Aileron Deflection Command!})
 $$
 
 ---
+
 
 ## 4. Results & Simulation Benchmarking
 
