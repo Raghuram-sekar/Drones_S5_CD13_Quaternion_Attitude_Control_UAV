@@ -477,17 +477,21 @@ The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft si
 
 
 ### Conclusion
-This project successfully designed, implemented, and validated a non-singular **Quaternion Attitude Controller** for aerobatic fixed-wing drones. By replacing traditional Euler angle loops with a single $Q_P$ quaternion error controller, we achieved:
+This project successfully designed, implemented, and validated a non-singular **Quaternion Attitude Controller** for Aircraft and drones. By replacing traditional Euler angle loops with a single $Q_P$ quaternion error controller, we achieved:
 - Complete elimination of gimbal lock singularities.
 - Automatic axis decoupling during steep bank ($80°$) and knife-edge ($90°$) flight maneuvers.
+- MATLAB Simulink 3D simulation
 - A ** $10\times $ reduction in yaw tracking error** ($3.07°$ vs $30.50°$) during $90°$ bank turns compared to classical Euler PID control.
+- 
 
 ### Future Work for Final Evaluation
+- Extended and more intensive simulation
+- Data Driven approach and comparison with Euler and Quaternion based systems
 As instructed by faculty, for the final project evaluation we will expand our SITL simulation across all four targeted simulation environments:
-1. `gym-pybullet-drones` (Reinforcement Learning & Multi-agent simulation)
-2. `MuJoCo` (Physics-based multi-body dynamic simulation)
-3. `Gazebo` (ROS-integrated full drone environment)
-4. `ArduPilot` (Firmware SITL compilation & flight controller integration)
+ 1. `gym-pybullet-drones` (Reinforcement Learning & Multi-agent simulation)
+ 2. `MuJoCo` (Physics-based multi-body dynamic simulation)
+ 3. `Gazebo` (ROS-integrated full drone environment)
+ 4. `ArduPilot` (Firmware SITL compilation & flight controller integration)
 
 ---
 
