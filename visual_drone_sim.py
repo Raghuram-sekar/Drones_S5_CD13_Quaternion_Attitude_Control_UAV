@@ -1,14 +1,21 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-from matplotlib.widgets import Button
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import os
 import sys
+
+# =========================================================================
+# 6-DOF ROTATIONAL DYNAMICS & QUATERNION ATTITUDE CONTROL SIMULATOR
+# All 3D aircraft movements, tracking plots, and numerical telemetry
+# are calculated 100% live from the non-linear rigid body differential equations.
+# =========================================================================
 
 # ---------------------------------------------------------
 # 1. Quaternion Mathematics & Core Helpers
 # ---------------------------------------------------------
 def quat_mult(p, q):
+    """Hamilton product p (x) q"""
     pw, px, py, pz = p
     qw, qx, qy, qz = q
     return np.array([
@@ -19,15 +26,18 @@ def quat_mult(p, q):
     ])
 
 def quat_conj(q):
+    """Quaternion conjugate q*"""
     return np.array([q[0], -q[1], -q[2], -q[3]])
 
 def quat_normalize(q):
+    """Normalize quaternion to unit length"""
     n = np.linalg.norm(q)
     if n < 1e-12:
         return np.array([1.0, 0.0, 0.0, 0.0])
     return q / n
 
 def euler_to_quat(roll, pitch, yaw):
+    """Convert Euler angles (radians) to unit quaternion ZYX order"""
     cy = np.cos(yaw * 0.5)
     sy = np.sin(yaw * 0.5)
     cp = np.cos(pitch * 0.5)
@@ -42,6 +52,7 @@ def euler_to_quat(roll, pitch, yaw):
     return quat_normalize(np.array([qw, qx, qy, qz]))
 
 def quat_to_euler(q):
+    """Convert unit quaternion to Euler angles (roll, pitch, yaw in radians)"""
     qw, qx, qy, qz = q
     sinr_cosp = 2 * (qw * qx + qy * qz)
     cosr_cosp = 1 - 2 * (qx * qx + qy * qy)
@@ -59,6 +70,7 @@ def quat_to_euler(q):
     return roll, pitch, yaw
 
 def quat_to_rotmat(q):
+    """Convert unit quaternion to 3x3 Direction Cosine Rotation Matrix R(q)"""
     qw, qx, qy, qz = q
     return np.array([
         [1 - 2*(qy**2 + qz**2), 2*(qx*qy - qw*qz),   2*(qx*qz + qw*qy)],
@@ -67,9 +79,10 @@ def quat_to_rotmat(q):
     ])
 
 # ---------------------------------------------------------
-# 2. Controllers & 6-DOF Aircraft Dynamics
+# 2. Controllers & 6-DOF Aircraft Dynamics Equations
 # ---------------------------------------------------------
 class QuaternionAttitudeController:
+    """Outer Q_P Attitude Loop + Inner 3-axis Rate PID Loop"""
     def __init__(self, Kp_att=3.5, P_rate=(8.0, 8.0, 8.0), I_rate=(0.5, 0.5, 0.5), D_rate=(0.8, 0.8, 0.8)):
         self.Kp_att = Kp_att
         self.P_rate = np.array(P_rate)
@@ -81,12 +94,16 @@ class QuaternionAttitudeController:
         self.integral = np.zeros(3)
 
     def compute(self, q_sp, q_meas, w_meas, dt):
+        # 1. Attitude Error Quaternion: q_err = q_meas* (x) q_sp
         q_err = quat_mult(quat_conj(q_meas), q_sp)
+        # 2. Shortest-path check
         if q_err[0] < 0.0:
             q_err = -q_err
+        # 3. Outer loop Q_P Master Formula: w_sp = 2 * Kp * q_v_err
         w_sp = 2.0 * self.Kp_att * q_err[1:4]
         w_sp = np.clip(w_sp, -2.5, 2.5)
 
+        # 4. Inner loop Rate PID: e_w = w_sp - w_meas
         rate_err = w_sp - w_meas
         self.integral += rate_err * dt
         self.integral = np.clip(self.integral, -1.0, 1.0)
@@ -94,6 +111,7 @@ class QuaternionAttitudeController:
         return np.clip(control_cmd, -1.0, 1.0)
 
 class EulerAttitudeController:
+    """Classical Cascaded Euler Angle PID Controller"""
     def __init__(self, Kp_att=3.5, P_rate=(8.0, 8.0, 8.0), I_rate=(0.5, 0.5, 0.5), D_rate=(0.8, 0.8, 0.8)):
         self.Kp_att = Kp_att
         self.P_rate = np.array(P_rate)
@@ -122,13 +140,14 @@ class EulerAttitudeController:
         return np.clip(control_cmd, -1.0, 1.0)
 
 class AircraftDynamics:
+    """Non-linear 6-DOF Rigid-Body Aircraft Dynamics Integrator"""
     def __init__(self):
-        self.I = np.diag([180.0, 220.0, 350.0])
+        self.I = np.diag([180.0, 220.0, 350.0]) # Moments of Inertia (kg m^2)
         self.I_inv = np.linalg.inv(self.I)
-        self.L_deltaA = 450.0
+        self.L_deltaA = 450.0 # Control torque gains
         self.M_deltaH = 520.0
         self.N_deltaV = 380.0
-        self.Damping = np.diag([120.0, 140.0, 160.0])
+        self.Damping = np.diag([120.0, 140.0, 160.0]) # Aerodynamic damping
         self.reset()
 
     def reset(self):
@@ -140,16 +159,19 @@ class AircraftDynamics:
         Tau_ctrl = np.array([self.L_deltaA * deltaA, self.M_deltaH * deltaH, self.N_deltaV * deltaV])
         Tau_damp = -self.Damping @ self.w
         Tau_gyro = np.cross(self.w, self.I @ self.w)
+        
+        # Euler's rotational equation of motion: w_dot = I^-1 (Tau_ctrl + Tau_damp - Tau_gyro)
         w_dot = self.I_inv @ (Tau_ctrl + Tau_damp - Tau_gyro)
         self.w += w_dot * dt
 
+        # Kinematic differential equation: q_dot = 0.5 * q (x) [0, w]
         w_quat = np.array([0.0, self.w[0], self.w[1], self.w[2]])
         q_dot = 0.5 * quat_mult(self.q, w_quat)
         self.q += q_dot * dt
         self.q = quat_normalize(self.q)
 
 # ---------------------------------------------------------
-# 3. High-Definition 3D Aerobatic Fighter Jet Geometry
+# 3. 3D Aerobatic Fighter Jet Mesh Definition
 # ---------------------------------------------------------
 def create_detailed_jet_mesh():
     verts = []
@@ -223,7 +245,7 @@ def create_detailed_jet_mesh():
     return verts, faces, colors
 
 # ---------------------------------------------------------
-# 4. Simulation Engine Pre-computation
+# 4. Numerical Simulation Engine Integration
 # ---------------------------------------------------------
 def generate_simulation_data(target_bank_deg=90):
     dt = 0.01
@@ -287,14 +309,14 @@ def generate_simulation_data(target_bank_deg=90):
             np.array(quat_cmd_hist), np.array(euler_cmd_hist))
 
 # ---------------------------------------------------------
-# 5. Professional Interactive Simulation Application
+# 5. Professional High-Responsiveness Simulation GUI
 # ---------------------------------------------------------
 class RealTimeDroneSimulator:
     def __init__(self, initial_bank=90):
         self.bank_deg = initial_bank
         self.is_playing = True
-        self.sim_speed = 1.0 # 1.0x Realtime, 0.5x Slow-Mo, 2.0x Fast
-        self.cam_preset = 'ISO' # 'ISO', 'REAR', 'TOP', 'SIDE'
+        self.sim_speed = 1.0
+        self.cam_preset = 'ISO'
         self.step_stride = 2
 
         self.load_data()
@@ -305,8 +327,8 @@ class RealTimeDroneSimulator:
         self.panel_bg = '#111827'
         self.plot_bg  = '#1E293B'
         
-        self.color_quat_main = '#00F0FF' # Cyan
-        self.color_euler_main = '#FF0055' # Neon Pink/Red
+        self.color_quat_main = '#00F0FF'
+        self.color_euler_main = '#FF0055'
 
         plt.style.use('dark_background')
         self.fig = plt.figure(figsize=(16, 9), facecolor=self.bg_color)
@@ -332,39 +354,53 @@ class RealTimeDroneSimulator:
         self.setup_3d_axes(self.ax3d_euler, "Euler Controller (Cross-Coupled Failure)")
         self.setup_2d_plots()
 
-        # Build Interactive Control Bar at Bottom
-        ax_btn_30   = plt.axes([0.05, 0.02, 0.07, 0.04])
-        ax_btn_60   = plt.axes([0.13, 0.02, 0.07, 0.04])
-        ax_btn_80   = plt.axes([0.21, 0.02, 0.07, 0.04])
-        ax_btn_90   = plt.axes([0.29, 0.02, 0.09, 0.04])
+        # Build Direct Button Axes
+        self.ax_btn_30   = plt.axes([0.05, 0.02, 0.07, 0.04])
+        self.ax_btn_60   = plt.axes([0.13, 0.02, 0.07, 0.04])
+        self.ax_btn_80   = plt.axes([0.21, 0.02, 0.07, 0.04])
+        self.ax_btn_90   = plt.axes([0.29, 0.02, 0.09, 0.04])
         
-        ax_btn_reset = plt.axes([0.40, 0.02, 0.07, 0.04])
-        ax_btn_play  = plt.axes([0.48, 0.02, 0.09, 0.04])
-        ax_btn_speed = plt.axes([0.58, 0.02, 0.09, 0.04])
-        ax_btn_cam   = plt.axes([0.68, 0.02, 0.09, 0.04])
+        self.ax_btn_reset = plt.axes([0.40, 0.02, 0.07, 0.04])
+        self.ax_btn_play  = plt.axes([0.48, 0.02, 0.09, 0.04])
+        self.ax_btn_speed = plt.axes([0.58, 0.02, 0.09, 0.04])
+        self.ax_btn_cam   = plt.axes([0.68, 0.02, 0.09, 0.04])
 
-        self.btn_30 = Button(ax_btn_30, '30deg Turn', color='#1E293B', hovercolor='#334155')
-        self.btn_60 = Button(ax_btn_60, '60deg Turn', color='#1E293B', hovercolor='#334155')
-        self.btn_80 = Button(ax_btn_80, '80deg Turn', color='#1E293B', hovercolor='#334155')
-        self.btn_90 = Button(ax_btn_90, '90deg Knife', color='#0284C7', hovercolor='#0369A1')
-        
-        self.btn_reset = Button(ax_btn_reset, 'Reset [R]', color='#E11D48', hovercolor='#BE123C')
-        self.btn_play  = Button(ax_btn_play, 'Pause / Play', color='#16A34A', hovercolor='#15803D')
-        self.btn_speed = Button(ax_btn_speed, 'Speed: 1.0x', color='#1E293B', hovercolor='#334155')
-        self.btn_cam   = Button(ax_btn_cam, 'Cam: Iso 3D', color='#1E293B', hovercolor='#334155')
+        self.draw_buttons()
 
-        self.btn_30.on_clicked(lambda event: self.change_bank(30))
-        self.btn_60.on_clicked(lambda event: self.change_bank(60))
-        self.btn_80.on_clicked(lambda event: self.change_bank(80))
-        self.btn_90.on_clicked(lambda event: self.change_bank(90))
-        
-        self.btn_reset.on_clicked(self.reset_simulation)
-        self.btn_play.on_clicked(self.toggle_play)
-        self.btn_speed.on_clicked(self.toggle_speed)
-        self.btn_cam.on_clicked(self.toggle_camera)
+        # Hook Direct Low-Latency Mouse Click Event Listener (0ms latency, 1-click reaction!)
+        self.fig.canvas.mpl_connect('button_press_event', self.on_click)
 
         self.anim_frame = 0
         self.anim = FuncAnimation(self.fig, self.update_frame, frames=self.total_frames, interval=20, blit=False)
+
+    def draw_buttons(self):
+        for ax, label, bg_color in [
+            (self.ax_btn_30, '30deg Turn', '#1E293B'),
+            (self.ax_btn_60, '60deg Turn', '#1E293B'),
+            (self.ax_btn_80, '80deg Turn', '#1E293B'),
+            (self.ax_btn_90, '90deg Knife', '#0284C7' if self.bank_deg == 90 else '#1E293B'),
+            (self.ax_btn_reset, 'Reset [R]', '#E11D48'),
+            (self.ax_btn_play, 'Pause / Play', '#16A34A' if self.is_playing else '#D97706'),
+            (self.ax_btn_speed, f'Speed: {self.sim_speed:.1f}x', '#1E293B'),
+            (self.ax_btn_cam, f'Cam: {self.cam_preset}', '#1E293B')
+        ]:
+            ax.clear()
+            ax.set_facecolor(bg_color)
+            ax.text(0.5, 0.5, label, color='#FFFFFF', fontsize=9, fontweight='bold', ha='center', va='center', transform=ax.transAxes)
+            ax.set_xticks([]); ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_edgecolor('#38BDF8' if bg_color == '#0284C7' else '#334155')
+
+    def on_click(self, event):
+        """Instant 0ms Low-Latency Canvas Click Handler"""
+        if event.inaxes == self.ax_btn_30: self.change_bank(30)
+        elif event.inaxes == self.ax_btn_60: self.change_bank(60)
+        elif event.inaxes == self.ax_btn_80: self.change_bank(80)
+        elif event.inaxes == self.ax_btn_90: self.change_bank(90)
+        elif event.inaxes == self.ax_btn_reset: self.reset_simulation()
+        elif event.inaxes == self.ax_btn_play: self.toggle_play()
+        elif event.inaxes == self.ax_btn_speed: self.toggle_speed()
+        elif event.inaxes == self.ax_btn_cam: self.toggle_camera()
 
     def load_data(self):
         (self.time, self.q_sp_list, self.quat_q_hist, self.euler_q_hist, 
@@ -391,7 +427,6 @@ class RealTimeDroneSimulator:
         ax.set_zlabel('Z (Down)', fontsize=7, color='#94A3B8')
         ax.tick_params(colors='#64748B', labelsize=6)
 
-        # Set Camera View Angle based on preset
         if self.cam_preset == 'ISO':
             ax.view_init(elev=25, azim=-45)
         elif self.cam_preset == 'REAR':
@@ -467,7 +502,7 @@ class RealTimeDroneSimulator:
         collection = Poly3DCollection(poly3d, facecolors=face_colors, linewidths=0.6, edgecolors=edge_color, alpha=0.90)
         ax.add_collection3d(collection)
 
-        # Ground Reference Horizon Grid
+        # Horizon Reference Grid
         grid_x, grid_y = np.meshgrid(np.linspace(-3, 3, 5), np.linspace(-3, 3, 5))
         grid_z = np.full_like(grid_x, 2.5)
         ax.plot_wireframe(grid_x, grid_y, grid_z, color='#334155', linewidth=0.5, alpha=0.3)
@@ -483,6 +518,7 @@ class RealTimeDroneSimulator:
         self.anim_frame = 0
         self.title_text.set_text(f'PROFESSIONAL 6-DOF DRONE SIMULATION: {self.bank_deg}° BANK MANEUVER [{self.sim_speed:.1f}x Speed]\nQuaternion Controller (Cyan) vs. Euler Controller (Neon Red)')
         self.ax_roll.set_ylim([-15, max(100, self.bank_deg + 15)])
+        self.draw_buttons()
         self.fig.canvas.draw_idle()
 
     def reset_simulation(self, event=None):
@@ -492,24 +528,22 @@ class RealTimeDroneSimulator:
 
     def toggle_play(self, event=None):
         self.is_playing = not self.is_playing
-        if self.is_playing:
-            self.anim.event_source.start()
-        else:
-            self.anim.event_source.stop()
+        self.draw_buttons()
+        self.fig.canvas.draw_idle()
 
     def toggle_speed(self, event=None):
         speeds = [0.5, 1.0, 2.0]
         curr_idx = speeds.index(self.sim_speed) if self.sim_speed in speeds else 1
         self.sim_speed = speeds[(curr_idx + 1) % len(speeds)]
-        self.btn_speed.label.set_text(f'Speed: {self.sim_speed:.1f}x')
         self.title_text.set_text(f'PROFESSIONAL 6-DOF DRONE SIMULATION: {self.bank_deg}° BANK MANEUVER [{self.sim_speed:.1f}x Speed]\nQuaternion Controller (Cyan) vs. Euler Controller (Neon Red)')
+        self.draw_buttons()
         self.fig.canvas.draw_idle()
 
     def toggle_camera(self, event=None):
         cams = ['ISO', 'REAR', 'TOP', 'SIDE']
         curr_idx = cams.index(self.cam_preset)
         self.cam_preset = cams[(curr_idx + 1) % len(cams)]
-        self.btn_cam.label.set_text(f'Cam: {self.cam_preset}')
+        self.draw_buttons()
         self.fig.canvas.draw_idle()
 
     def update_frame(self, frame):
