@@ -465,10 +465,18 @@ The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft si
 
 ---
 
-### 4.3 Interactive Real-Time 3D Drone Simulator Application
+### 4.3 Interactive Real-Time 3D Drone Simulator Applications
 
-To visualize how the aircraft acts in real-time under Quaternion vs. Euler attitude control, run the interactive 3D simulation dashboard:
+To visualize how the aircraft acts in real-time under Quaternion vs. Euler attitude control, two simulation options are provided:
 
+#### Option A: Ultra-Fast 60 FPS GPU-Accelerated Web Simulator (Recommended for Live Demo)
+```bash
+python fast_drone_sim.py
+```
+- **0ms Button Response Latency:** Instantaneous 1-click button switching (`30°`, `60°`, `80°`, `90° Knife-Edge`, `Reset`, `Pause/Play`, `Speed 0.5x/1.0x/2.0x`).
+- **Three.js WebGL GPU Acceleration:** Smooth 60 FPS 3D fighter jet rotation in hardware-accelerated 3D space.
+
+#### Option B: Standalone Desktop Matplotlib Simulator
 ```bash
 python visual_drone_sim.py
 ```
@@ -480,10 +488,10 @@ python visual_drone_sim.py
 </p>
 
 #### Features of the Real-Time Simulator:
-- **Dual 3D Aircraft Animation:** Renders 3D aircraft spatial attitude in real-time for both Quaternion (Blue) and Euler (Red) controllers side-by-side.
+- **Dual 3D Aircraft Animation:** Renders 3D aircraft spatial attitude in real-time for both Quaternion (Cyan) and Euler (Neon Red) controllers side-by-side.
 - **Interactive Bank Controls:** Clickable buttons (`30° Turn`, `60° Turn`, `80° Turn`, `90° Knife-Edge`) to dynamically switch maneuvers live.
-- **Live Telemetry Stream:** Displays real-time numerical readouts of quaternions ($q_w, q_x, q_y, q_z$), Euler angles ($\phi, \theta, \psi$), tracking errors, and flight status.
-- **Play/Pause Controls:** Interactive play/pause controls for step-by-step examination of flight dynamics.
+- **Instant Reset & Speed Controls:** Reset button `[R]` and variable speed multipliers (`0.5x Slow-Mo`, `1.0x Realtime`, `2.0x Fast`).
+- **Live Telemetry Stream:** Displays real-time numerical readouts of quaternions ($q_w, q_x, q_y, q_z$), Euler angles ($\phi, \theta, \psi$), flap deflections ($\delta_A, \delta_H, \delta_V$), and flight status.
 
 ---
 
