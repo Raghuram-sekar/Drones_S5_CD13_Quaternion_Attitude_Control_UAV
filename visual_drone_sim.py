@@ -6,7 +6,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import sys
 
 # ---------------------------------------------------------
-# 1. Quaternion Mathematics & Helpers
+# 1. Quaternion Mathematics & Core Helpers
 # ---------------------------------------------------------
 def quat_mult(p, q):
     pw, px, py, pz = p
@@ -149,40 +149,96 @@ class AircraftDynamics:
         self.q = quat_normalize(self.q)
 
 # ---------------------------------------------------------
-# 3. 3D Airplane Model Geometry
+# 3. High-Definition 3D Aerobatic Fighter Jet Geometry
 # ---------------------------------------------------------
-def get_aircraft_mesh():
-    vertices = np.array([
-        [ 2.0,  0.0,  0.0],
-        [-1.5,  0.3, -0.2],
-        [-1.5, -0.3, -0.2],
-        [-1.5,  0.0,  0.3],
-        [ 0.4,  2.2,  0.0],
-        [-0.4,  2.2,  0.0],
-        [ 0.4, -2.2,  0.0],
-        [-0.4, -2.2,  0.0],
-        [-1.1,  0.9,  0.0],
-        [-1.5,  0.9,  0.0],
-        [-1.1, -0.9,  0.0],
-        [-1.5, -0.9,  0.0],
-        [-1.1,  0.0,  0.0],
-        [-1.6,  0.0, -1.0],
-        [-1.6,  0.0,  0.0]
-    ])
+def create_detailed_jet_mesh():
+    verts = []
+    faces = []
+    colors = []
 
-    faces = [
-        [0, 1, 2], [0, 2, 3], [0, 3, 1], [1, 2, 3],
-        [0, 4, 5], [0, 5, 1], [0, 6, 7], [0, 7, 1],
-        [12, 8, 9], [12, 10, 11],
-        [12, 13, 14]
-    ]
-    return vertices, faces
+    # 1. Fuselage Ring Vertices
+    verts.append([2.5,  0.0,   0.0])  # 0: Nose tip
+    verts.append([1.0,  0.25, -0.2])  # 1: Cockpit Ring Top Right
+    verts.append([1.0, -0.25, -0.2])  # 2: Cockpit Ring Top Left
+    verts.append([1.0, -0.25,  0.25]) # 3: Cockpit Ring Bottom Left
+    verts.append([1.0,  0.25,  0.25]) # 4: Cockpit Ring Bottom Right
+    verts.append([1.2,  0.0,  -0.45]) # 5: Glass Canopy Top Peak
+
+    verts.append([-0.5,  0.35, -0.25]) # 6: Mid Fuselage Top R
+    verts.append([-0.5, -0.35, -0.25]) # 7: Mid Fuselage Top L
+    verts.append([-0.5, -0.35,  0.30]) # 8: Mid Fuselage Bot L
+    verts.append([-0.5,  0.35,  0.30]) # 9: Mid Fuselage Bot R
+
+    verts.append([-2.0,  0.18, -0.15]) # 10: Tail Ring Top R
+    verts.append([-2.0, -0.18, -0.15]) # 11: Tail Ring Top L
+    verts.append([-2.0, -0.18,  0.15]) # 12: Tail Ring Bot L
+    verts.append([-2.0,  0.18,  0.15]) # 13: Tail Ring Bot R
+
+    # 2. Main Wings (Swept Aerobatic Wings)
+    verts.append([ 0.5,  2.8, -0.05]) # 14: Right Wing Tip Lead
+    verts.append([-0.5,  2.8, -0.05]) # 15: Right Wing Tip Trail
+    verts.append([ 0.5, -2.8, -0.05]) # 16: Left Wing Tip Lead
+    verts.append([-0.5, -2.8, -0.05]) # 17: Left Wing Tip Trail
+
+    # 3. Horizontal Tail Stabilizers (Elevators)
+    verts.append([-1.3,  1.1,  0.0])  # 18: Right Tail Tip Lead
+    verts.append([-1.9,  1.1,  0.0])  # 19: Right Tail Tip Trail
+    verts.append([-1.3, -1.1,  0.0])  # 20: Left Tail Tip Lead
+    verts.append([-1.9, -1.1,  0.0])  # 21: Left Tail Tip Trail
+
+    # 4. Vertical Tail Fin (Rudder)
+    verts.append([-1.2,  0.0, -0.25]) # 22: Fin Base Lead
+    verts.append([-2.1,  0.0, -1.35]) # 23: Fin Top Lead
+    verts.append([-2.1,  0.0, -0.25]) # 24: Fin Base Trail
+
+    verts = np.array(verts)
+
+    # Faces Definition
+    # Nose Cone
+    faces.append([0, 1, 5]); colors.append('BODY')
+    faces.append([0, 5, 2]); colors.append('BODY')
+    faces.append([0, 1, 4]); colors.append('BODY_DARK')
+    faces.append([0, 2, 3]); colors.append('BODY_DARK')
+    faces.append([0, 3, 4]); colors.append('BOTTOM')
+
+    # Cockpit Glass Canopy (Glass Blue Accent)
+    faces.append([1, 5, 2]); colors.append('CANOPY')
+    faces.append([1, 5, 6]); colors.append('BODY')
+    faces.append([2, 5, 7]); colors.append('BODY')
+
+    # Mid Fuselage
+    faces.append([1, 6, 7, 2]); colors.append('BODY')
+    faces.append([4, 9, 8, 3]); colors.append('BOTTOM')
+    faces.append([1, 4, 9, 6]); colors.append('BODY_DARK')
+    faces.append([2, 3, 8, 7]); colors.append('BODY_DARK')
+
+    # Tail Fuselage
+    faces.append([6, 10, 11, 7]); colors.append('BODY')
+    faces.append([9, 13, 12, 8]); colors.append('BOTTOM')
+    faces.append([6, 9, 13, 10]); colors.append('BODY_DARK')
+    faces.append([7, 8, 12, 11]); colors.append('BODY_DARK')
+    faces.append([10, 11, 12, 13]); colors.append('EXHAUST')
+
+    # Main Wings
+    faces.append([1, 14, 15, 6]); colors.append('WING_TOP')
+    faces.append([4, 14, 15, 9]); colors.append('WING_BOT')
+    faces.append([2, 16, 17, 7]); colors.append('WING_TOP')
+    faces.append([3, 16, 17, 8]); colors.append('WING_BOT')
+
+    # Tail Horizontal Stabilizers
+    faces.append([6, 18, 19, 10]); colors.append('WING_TOP')
+    faces.append([7, 20, 21, 11]); colors.append('WING_TOP')
+
+    # Vertical Tail Fin (Rudder)
+    faces.append([22, 23, 24]); colors.append('FIN_ACCENT')
+
+    return verts, faces, colors
 
 # ---------------------------------------------------------
 # 4. Simulation Engine Pre-computation
 # ---------------------------------------------------------
 def generate_simulation_data(target_bank_deg=90):
-    dt = 0.02
+    dt = 0.01
     duration = 20.0
     steps = int(duration / dt)
     time = np.linspace(0, duration, steps)
@@ -239,34 +295,44 @@ def generate_simulation_data(target_bank_deg=90):
     return time, q_sp_list, quat_q_hist, euler_q_hist, sp_euler, quat_euler, euler_euler
 
 # ---------------------------------------------------------
-# 5. Interactive Real-Time Visual Simulator Application
+# 5. World-Class Interactive Real-Time Visual Simulator
 # ---------------------------------------------------------
 class RealTimeDroneSimulator:
     def __init__(self, initial_bank=90):
         self.bank_deg = initial_bank
         self.is_playing = True
-        self.current_frame = 0
+        self.step_stride = 2 # Subsample 100 Hz simulation data to 50 FPS animation
 
         self.time, self.q_sp_list, self.quat_q_hist, self.euler_q_hist, self.sp_euler, self.quat_euler, self.euler_euler = generate_simulation_data(self.bank_deg)
-        self.total_frames = len(self.time)
+        self.total_frames = len(self.time) // self.step_stride
 
-        self.base_verts, self.mesh_faces = get_aircraft_mesh()
+        self.base_verts, self.mesh_faces, self.face_color_tags = create_detailed_jet_mesh()
+
+        # Modern Avionics Theme Palette
+        self.bg_color = '#0B0F19'
+        self.panel_bg = '#111827'
+        self.plot_bg  = '#1E293B'
+        
+        self.color_quat_main = '#00F0FF' # Cyan
+        self.color_quat_body = '#0284C7'
+        self.color_euler_main = '#FF0055' # Neon Pink/Red
+        self.color_euler_body = '#DC2626'
 
         plt.style.use('dark_background')
-        self.fig = plt.figure(figsize=(16, 9), facecolor='#0B0F19')
-        self.fig.canvas.manager.set_window_title('Real-Time Flight Controller Simulator: Quaternion vs. Euler')
+        self.fig = plt.figure(figsize=(16, 9), facecolor=self.bg_color)
+        self.fig.canvas.manager.set_window_title('AAA Flight Control Simulator: Quaternion vs. Euler')
 
         self.title_text = self.fig.suptitle(
-            f'REAL-TIME 6-DOF DRONE SIMULATION: {self.bank_deg}° BANK MANEUVER\nQuaternion Controller (Blue) vs. Euler Controller (Red)',
-            fontsize=13, fontweight='bold', color='#E2E8F0', y=0.97
+            f'REAL-TIME 6-DOF DRONE SIMULATION: {self.bank_deg}° BANK MANEUVER\nQuaternion Controller (Cyan) vs. Euler Controller (Neon Red)',
+            fontsize=13, fontweight='bold', color='#F8FAFC', y=0.97
         )
 
-        self.ax3d_quat = self.fig.add_subplot(2, 3, 1, projection='3d', facecolor='#111827')
-        self.ax3d_euler = self.fig.add_subplot(2, 3, 4, projection='3d', facecolor='#111827')
+        self.ax3d_quat = self.fig.add_subplot(2, 3, 1, projection='3d', facecolor=self.panel_bg)
+        self.ax3d_euler = self.fig.add_subplot(2, 3, 4, projection='3d', facecolor=self.panel_bg)
 
-        self.ax_roll  = self.fig.add_subplot(3, 3, 2, facecolor='#1E293B')
-        self.ax_pitch = self.fig.add_subplot(3, 3, 5, facecolor='#1E293B')
-        self.ax_yaw   = self.fig.add_subplot(3, 3, 8, facecolor='#1E293B')
+        self.ax_roll  = self.fig.add_subplot(3, 3, 2, facecolor=self.plot_bg)
+        self.ax_pitch = self.fig.add_subplot(3, 3, 5, facecolor=self.plot_bg)
+        self.ax_yaw   = self.fig.add_subplot(3, 3, 8, facecolor=self.plot_bg)
 
         self.ax_telemetry = self.fig.add_subplot(1, 3, 3, facecolor='#0F172A')
         self.ax_telemetry.axis('off')
@@ -275,11 +341,12 @@ class RealTimeDroneSimulator:
         self.setup_3d_axes(self.ax3d_euler, "Euler Controller (Cross-Coupled Failure)")
         self.setup_2d_plots()
 
-        ax_btn_30 = plt.axes([0.10, 0.02, 0.08, 0.04])
-        ax_btn_60 = plt.axes([0.19, 0.02, 0.08, 0.04])
-        ax_btn_80 = plt.axes([0.28, 0.02, 0.08, 0.04])
-        ax_btn_90 = plt.axes([0.37, 0.02, 0.08, 0.04])
-        ax_btn_play = plt.axes([0.47, 0.02, 0.10, 0.04])
+        # Add Interactive Control Buttons
+        ax_btn_30 = plt.axes([0.08, 0.02, 0.08, 0.04])
+        ax_btn_60 = plt.axes([0.17, 0.02, 0.08, 0.04])
+        ax_btn_80 = plt.axes([0.26, 0.02, 0.08, 0.04])
+        ax_btn_90 = plt.axes([0.35, 0.02, 0.08, 0.04])
+        ax_btn_play = plt.axes([0.45, 0.02, 0.10, 0.04])
 
         self.btn_30 = Button(ax_btn_30, '30deg Turn', color='#1E293B', hovercolor='#334155')
         self.btn_60 = Button(ax_btn_60, '60deg Turn', color='#1E293B', hovercolor='#334155')
@@ -296,35 +363,45 @@ class RealTimeDroneSimulator:
         self.anim = FuncAnimation(self.fig, self.update_frame, frames=self.total_frames, interval=20, blit=False)
 
     def setup_3d_axes(self, ax, title):
-        ax.set_xlim([-2.5, 2.5])
-        ax.set_ylim([-2.5, 2.5])
-        ax.set_zlim([-2.5, 2.5])
+        ax.set_xlim([-3.0, 3.0])
+        ax.set_ylim([-3.0, 3.0])
+        ax.set_zlim([-3.0, 3.0])
         ax.set_title(title, fontsize=10, fontweight='bold', color='#38BDF8', pad=10)
-        ax.set_xlabel('Body X (Forward)', fontsize=8, color='#94A3B8')
-        ax.set_ylabel('Body Y (Right)', fontsize=8, color='#94A3B8')
-        ax.set_zlabel('Body Z (Down)', fontsize=8, color='#94A3B8')
-        ax.tick_params(colors='#64748B', labelsize=7)
+        
+        # Style grid lines cleanly
+        ax.xaxis.pane.fill = False
+        ax.yaxis.pane.fill = False
+        ax.zaxis.pane.fill = False
+        ax.xaxis.pane.set_edgecolor('#1E293B')
+        ax.yaxis.pane.set_edgecolor('#1E293B')
+        ax.zaxis.pane.set_edgecolor('#1E293B')
+        ax.grid(True, linestyle=':', alpha=0.3, color='#475569')
+
+        ax.set_xlabel('X (Forward)', fontsize=7, color='#94A3B8')
+        ax.set_ylabel('Y (Right)', fontsize=7, color='#94A3B8')
+        ax.set_zlabel('Z (Down)', fontsize=7, color='#94A3B8')
+        ax.tick_params(colors='#64748B', labelsize=6)
 
     def setup_2d_plots(self):
         self.ax_roll.set_title("Roll Angle (phi) Tracking", fontsize=9.5, fontweight='bold', color='#38BDF8')
         self.line_roll_sp, = self.ax_roll.plot([], [], 'g--', label='Setpoint', linewidth=1.5)
-        self.line_roll_q,  = self.ax_roll.plot([], [], '#38BDF8', label='Quaternion Controller', linewidth=2.0)
-        self.line_roll_e,  = self.ax_roll.plot([], [], '#EF4444', label='Euler Controller', linewidth=1.5, linestyle='-.')
+        self.line_roll_q,  = self.ax_roll.plot([], [], self.color_quat_main, label='Quaternion Controller', linewidth=2.0)
+        self.line_roll_e,  = self.ax_roll.plot([], [], self.color_euler_main, label='Euler Controller', linewidth=1.5, linestyle='-.')
         self.ax_roll.set_ylabel("Roll [deg]", fontsize=8.5, color='#94A3B8')
         self.ax_roll.grid(True, linestyle=':', alpha=0.4)
         self.ax_roll.legend(loc='upper right', fontsize=8)
 
         self.ax_pitch.set_title("Pitch Angle (theta) Tracking", fontsize=9.5, fontweight='bold', color='#38BDF8')
         self.line_pitch_sp, = self.ax_pitch.plot([], [], 'g--', label='Setpoint', linewidth=1.5)
-        self.line_pitch_q,  = self.ax_pitch.plot([], [], '#38BDF8', label='Quaternion Controller', linewidth=2.0)
-        self.line_pitch_e,  = self.ax_pitch.plot([], [], '#EF4444', label='Euler Controller', linewidth=1.5, linestyle='-.')
+        self.line_pitch_q,  = self.ax_pitch.plot([], [], self.color_quat_main, label='Quaternion Controller', linewidth=2.0)
+        self.line_pitch_e,  = self.ax_pitch.plot([], [], self.color_euler_main, label='Euler Controller', linewidth=1.5, linestyle='-.')
         self.ax_pitch.set_ylabel("Pitch [deg]", fontsize=8.5, color='#94A3B8')
         self.ax_pitch.grid(True, linestyle=':', alpha=0.4)
 
         self.ax_yaw.set_title("Yaw Angle (psi) Tracking", fontsize=9.5, fontweight='bold', color='#38BDF8')
         self.line_yaw_sp, = self.ax_yaw.plot([], [], 'g--', label='Setpoint', linewidth=1.5)
-        self.line_yaw_q,  = self.ax_yaw.plot([], [], '#38BDF8', label='Quaternion Controller', linewidth=2.0)
-        self.line_yaw_e,  = self.ax_yaw.plot([], [], '#EF4444', label='Euler Controller', linewidth=1.5, linestyle='-.')
+        self.line_yaw_q,  = self.ax_yaw.plot([], [], self.color_quat_main, label='Quaternion Controller', linewidth=2.0)
+        self.line_yaw_e,  = self.ax_yaw.plot([], [], self.color_euler_main, label='Euler Controller', linewidth=1.5, linestyle='-.')
         self.ax_yaw.set_ylabel("Yaw [deg]", fontsize=8.5, color='#94A3B8')
         self.ax_yaw.set_xlabel("Time [s]", fontsize=8.5, color='#94A3B8')
         self.ax_yaw.grid(True, linestyle=':', alpha=0.4)
@@ -337,31 +414,56 @@ class RealTimeDroneSimulator:
         self.ax_pitch.set_ylim([-15, 25])
         self.ax_yaw.set_ylim([-15, 200])
 
-    def render_3d_drone(self, ax, q, color_mesh='#0284C7', color_edge='#38BDF8'):
+    def render_3d_drone(self, ax, q, controller_type='QUATERNION'):
         ax.clear()
-        self.setup_3d_axes(ax, "Quaternion Controller (Singularity-Free)" if color_mesh == '#0284C7' else "Euler Controller (Cross-Coupled Failure)")
+        title = "Quaternion Controller (Singularity-Free)" if controller_type == 'QUATERNION' else "Euler Controller (Cross-Coupled Failure)"
+        self.setup_3d_axes(ax, title)
 
         R = quat_to_rotmat(q)
         transformed_verts = (R @ self.base_verts.T).T
 
+        # Assign shaded colors based on tag and controller type
+        face_colors = []
+        for tag in self.face_color_tags:
+            if controller_type == 'QUATERNION':
+                if tag == 'BODY': face_colors.append('#0284C7')
+                elif tag == 'BODY_DARK': face_colors.append('#0369A1')
+                elif tag == 'WING_TOP': face_colors.append('#38BDF8')
+                elif tag == 'WING_BOT': face_colors.append('#0284C7')
+                elif tag == 'CANOPY': face_colors.append('#00F0FF') # Bright Cyan Canopy
+                elif tag == 'FIN_ACCENT': face_colors.append('#F59E0B') # Gold Accent
+                elif tag == 'EXHAUST': face_colors.append('#1E293B')
+                else: face_colors.append('#075985')
+            else:
+                if tag == 'BODY': face_colors.append('#DC2626')
+                elif tag == 'BODY_DARK': face_colors.append('#991B1B')
+                elif tag == 'WING_TOP': face_colors.append('#F87171')
+                elif tag == 'WING_BOT': face_colors.append('#DC2626')
+                elif tag == 'CANOPY': face_colors.append('#FF0055') # Bright Neon Pink Canopy
+                elif tag == 'FIN_ACCENT': face_colors.append('#F59E0B')
+                elif tag == 'EXHAUST': face_colors.append('#1E293B')
+                else: face_colors.append('#7F1D1D')
+
+        edge_color = '#38BDF8' if controller_type == 'QUATERNION' else '#F87171'
         poly3d = [[transformed_verts[idx] for idx in face] for face in self.mesh_faces]
-        collection = Poly3DCollection(poly3d, facecolors=color_mesh, linewidths=0.8, edgecolors=color_edge, alpha=0.85)
+        collection = Poly3DCollection(poly3d, facecolors=face_colors, linewidths=0.6, edgecolors=edge_color, alpha=0.90)
         ax.add_collection3d(collection)
 
-        origin = np.zeros(3)
-        x_axis = R @ np.array([2.5, 0.0, 0.0])
-        y_axis = R @ np.array([0.0, 2.5, 0.0])
-        z_axis = R @ np.array([0.0, 0.0, 2.5])
+        # Draw Ground Reference Horizon Grid (Z = 2.0 down plane)
+        grid_x, grid_y = np.meshgrid(np.linspace(-3, 3, 5), np.linspace(-3, 3, 5))
+        grid_z = np.full_like(grid_x, 2.5)
+        ax.plot_wireframe(grid_x, grid_y, grid_z, color='#334155', linewidth=0.5, alpha=0.3)
 
-        ax.quiver(origin[0], origin[1], origin[2], x_axis[0], x_axis[1], x_axis[2], color='#EF4444', linewidth=2.0, arrow_length_ratio=0.1)
-        ax.quiver(origin[0], origin[1], origin[2], y_axis[0], y_axis[1], y_axis[2], color='#22C55E', linewidth=2.0, arrow_length_ratio=0.1)
-        ax.quiver(origin[0], origin[1], origin[2], z_axis[0], z_axis[1], z_axis[2], color='#A855F7', linewidth=2.0, arrow_length_ratio=0.1)
+        # Draw 3D Orientation Thrust/Heading Arrow
+        origin = np.zeros(3)
+        nose_dir = R @ np.array([3.0, 0.0, 0.0])
+        ax.quiver(origin[0], origin[1], origin[2], nose_dir[0], nose_dir[1], nose_dir[2], color='#EAB308', linewidth=2.2, arrow_length_ratio=0.12)
 
     def change_bank(self, bank):
         self.bank_deg = bank
         self.time, self.q_sp_list, self.quat_q_hist, self.euler_q_hist, self.sp_euler, self.quat_euler, self.euler_euler = generate_simulation_data(self.bank_deg)
-        self.current_frame = 0
-        self.title_text.set_text(f'REAL-TIME 6-DOF DRONE SIMULATION: {self.bank_deg}° BANK MANEUVER\nQuaternion Controller (Blue) vs. Euler Controller (Red)')
+        self.total_frames = len(self.time) // self.step_stride
+        self.title_text.set_text(f'REAL-TIME 6-DOF DRONE SIMULATION: {self.bank_deg}° BANK MANEUVER\nQuaternion Controller (Cyan) vs. Euler Controller (Neon Red)')
         self.ax_roll.set_ylim([-15, max(100, self.bank_deg + 15)])
         self.fig.canvas.draw_idle()
 
@@ -376,49 +478,49 @@ class RealTimeDroneSimulator:
         if not self.is_playing:
             return
 
-        idx = frame % self.total_frames
-        t_curr = self.time[idx]
+        sim_idx = (frame * self.step_stride) % len(self.time)
+        t_curr = self.time[sim_idx]
 
-        self.render_3d_drone(self.ax3d_quat, self.quat_q_hist[idx], color_mesh='#0284C7', color_edge='#38BDF8')
-        self.render_3d_drone(self.ax3d_euler, self.euler_q_hist[idx], color_mesh='#DC2626', color_edge='#F87171')
+        self.render_3d_drone(self.ax3d_quat, self.quat_q_hist[sim_idx], controller_type='QUATERNION')
+        self.render_3d_drone(self.ax3d_euler, self.euler_q_hist[sim_idx], controller_type='EULER')
 
-        t_slice = self.time[:idx+1]
-        self.line_roll_sp.set_data(t_slice, self.sp_euler[:idx+1, 0])
-        self.line_roll_q.set_data(t_slice, self.quat_euler[:idx+1, 0])
-        self.line_roll_e.set_data(t_slice, self.euler_euler[:idx+1, 0])
+        t_slice = self.time[:sim_idx+1]
+        self.line_roll_sp.set_data(t_slice, self.sp_euler[:sim_idx+1, 0])
+        self.line_roll_q.set_data(t_slice, self.quat_euler[:sim_idx+1, 0])
+        self.line_roll_e.set_data(t_slice, self.euler_euler[:sim_idx+1, 0])
 
-        self.line_pitch_sp.set_data(t_slice, self.sp_euler[:idx+1, 1])
-        self.line_pitch_q.set_data(t_slice, self.quat_euler[:idx+1, 1])
-        self.line_pitch_e.set_data(t_slice, self.euler_euler[:idx+1, 1])
+        self.line_pitch_sp.set_data(t_slice, self.sp_euler[:sim_idx+1, 1])
+        self.line_pitch_q.set_data(t_slice, self.quat_euler[:sim_idx+1, 1])
+        self.line_pitch_e.set_data(t_slice, self.euler_euler[:sim_idx+1, 1])
 
-        self.line_yaw_sp.set_data(t_slice, self.sp_euler[:idx+1, 2])
-        self.line_yaw_q.set_data(t_slice, self.quat_euler[:idx+1, 2])
-        self.line_yaw_e.set_data(t_slice, self.euler_euler[:idx+1, 2])
+        self.line_yaw_sp.set_data(t_slice, self.sp_euler[:sim_idx+1, 2])
+        self.line_yaw_q.set_data(t_slice, self.quat_euler[:sim_idx+1, 2])
+        self.line_yaw_e.set_data(t_slice, self.euler_euler[:sim_idx+1, 2])
 
         self.ax_telemetry.clear()
         self.ax_telemetry.axis('off')
 
-        q_q = self.quat_q_hist[idx]
-        e_q = self.quat_euler[idx]
-        e_e = self.euler_euler[idx]
-        sp_e = self.sp_euler[idx]
+        q_q = self.quat_q_hist[sim_idx]
+        e_q = self.quat_euler[sim_idx]
+        e_e = self.euler_euler[sim_idx]
+        sp_e = self.sp_euler[sim_idx]
 
         status_text = "[OK] QUATERNION: Smooth tracking" if self.bank_deg <= 80 else "[OK] QUATERNION: 0.27deg error (No Lock)"
         euler_status = "[WARN] EULER: Small coupling" if self.bank_deg < 80 else "[FAIL] EULER: Cross-Coupling Failure (30.5deg Yaw Error)"
 
         telemetry_text = (
-            f"  [+] REAL-TIME TELEMETRY STREAM\n"
+            f"  [+] AVIONICS TELEMETRY STREAM\n"
             f"  -------------------------------\n"
             f"  * Simulation Time: {t_curr:.2f} s\n"
             f"  * Target Bank Angle: {self.bank_deg} deg\n\n"
-            f"  [*] SETPOINT ATTITUDE:\n"
+            f"  [*] TARGET ATTITUDE SETPOINT:\n"
             f"    Roll: {sp_e[0]:6.2f}deg  Pitch: {sp_e[1]:6.2f}deg  Yaw: {sp_e[2]:6.2f}deg\n\n"
-            f"  [BLUE] QUATERNION CONTROLLER:\n"
+            f"  [CYAN] QUATERNION CONTROLLER:\n"
             f"    qw: {q_q[0]:6.3f}  qx: {q_q[1]:6.3f}  qy: {q_q[2]:6.3f}  qz: {q_q[3]:6.3f}\n"
             f"    Roll:  {e_q[0]:6.2f}deg (Err: {abs(sp_e[0]-e_q[0]):5.2f}deg)\n"
             f"    Pitch: {e_q[1]:6.2f}deg (Err: {abs(sp_e[1]-e_q[1]):5.2f}deg)\n"
             f"    Yaw:   {e_q[2]:6.2f}deg (Err: {abs(sp_e[2]-e_q[2]):5.2f}deg)\n\n"
-            f"  [RED] EULER CONTROLLER:\n"
+            f"  [PINK] EULER CONTROLLER:\n"
             f"    Roll:  {e_e[0]:6.2f}deg (Err: {abs(sp_e[0]-e_e[0]):5.2f}deg)\n"
             f"    Pitch: {e_e[1]:6.2f}deg (Err: {abs(sp_e[1]-e_e[1]):5.2f}deg)\n"
             f"    Yaw:   {e_e[2]:6.2f}deg (Err: {abs(sp_e[2]-e_e[2]):5.2f}deg)\n\n"
@@ -431,9 +533,9 @@ class RealTimeDroneSimulator:
         self.ax_telemetry.text(
             0.05, 0.95, telemetry_text,
             transform=self.ax_telemetry.transAxes,
-            fontsize=9.0, fontfamily='monospace', color='#F1F5F9',
+            fontsize=8.8, fontfamily='monospace', color='#F1F5F9',
             verticalalignment='top',
-            bbox=dict(boxstyle='round,pad=0.8', facecolor='#1E293B', edgecolor='#38BDF8', alpha=0.95)
+            bbox=dict(boxstyle='round,pad=0.8', facecolor='#1E293B', edgecolor='#00F0FF', alpha=0.95)
         )
 
         self.fig.canvas.draw_idle()
