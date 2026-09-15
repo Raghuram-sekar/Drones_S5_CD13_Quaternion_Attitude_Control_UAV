@@ -465,6 +465,28 @@ The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft si
 
 ---
 
+### 4.3 Interactive Real-Time 3D Drone Simulator Application
+
+To visualize how the aircraft acts in real-time under Quaternion vs. Euler attitude control, run the interactive 3D simulation dashboard:
+
+```bash
+python visual_drone_sim.py
+```
+
+<p align="center">
+  <img src="figures/fig_realtime_simulation_dashboard.png" alt="Real-Time 3D Drone Simulation Dashboard" width="900"/>
+  <br>
+  <em>Figure 4.6: Real-Time 3D Aircraft Simulation Dashboard. Left: Side-by-side 3D spatial aircraft model views (Quaternion in Blue vs. Euler in Red). Middle: Live 2D tracking plots. Right: Live telemetry stream.</em>
+</p>
+
+#### Features of the Real-Time Simulator:
+- **Dual 3D Aircraft Animation:** Renders 3D aircraft spatial attitude in real-time for both Quaternion (Blue) and Euler (Red) controllers side-by-side.
+- **Interactive Bank Controls:** Clickable buttons (`30° Turn`, `60° Turn`, `80° Turn`, `90° Knife-Edge`) to dynamically switch maneuvers live.
+- **Live Telemetry Stream:** Displays real-time numerical readouts of quaternions ($q_w, q_x, q_y, q_z$), Euler angles ($\phi, \theta, \psi$), tracking errors, and flight status.
+- **Play/Pause Controls:** Interactive play/pause controls for step-by-step examination of flight dynamics.
+
+---
+
 ## 5. Key Discussion & Comparative Findings
 
 1. **Low Bank Angles ($30° - 60°$):** Both controllers exhibit good tracking performance. Euler controllers perform adequately when roll angles are small and fixed-body approximations hold true.
