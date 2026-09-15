@@ -260,11 +260,118 @@ $$
 \delta_A = \text{clip}(u_{cmd,x}, -1.0, +1.0), \quad \delta_H = \text{clip}(u_{cmd,y}, -1.0, +1.0), \quad \delta_V = \text{clip}(u_{cmd,z}, -1.0, +1.0)
 $$
 
+---
 
+### 2.6 Atmospheric Wind Turbulence & Dynamic Quaternion Disturbance Coupling
+
+#### 2.6.1 Dryden Wind Turbulence Model (MIL-F-8785C)
+The atmospheric wind disturbance vector in inertial space $\mathbf{V}_{wind,i} = [u_w, v_w, w_w]^T$ consists of continuous stochastic turbulence filtered from zero-mean Gaussian white noise combined with deterministic crosswind step gusts.
+
+According to military specification MIL-F-8785C / MIL-STD-1797A, the Power Spectral Density (PSD) functions for longitudinal ($u_w$), lateral ($v_w$), and vertical ($w_w$) linear turbulence components are modeled via linear shaping filters:
+
+$$
+\Phi_{u_w}(\Omega) = \sigma_u^2 \frac{2 L_u}{\pi} \frac{1}{1 + (L_u \Omega)^2}
+$$
+
+$$
+\Phi_{v_w}(\Omega) = \sigma_v^2 \frac{L_v}{\pi} \frac{1 + 3(L_v \Omega)^2}{[1 + (L_v \Omega)^2]^2}
+$$
+
+$$
+\Phi_{w_w}(\Omega) = \sigma_w^2 \frac{L_w}{\pi} \frac{1 + 3(L_w \Omega)^2}{[1 + (L_w \Omega)^2]^2}
+$$
+
+where $\Omega = \frac{\omega}{V_{trim}}$ is the spatial frequency, $L_u, L_v, L_w$ are spatial turbulence scale lengths, and $\sigma_u, \sigma_v, \sigma_w$ are turbulence intensities.
+
+In the time domain, the shaping filters transform white noise processes $\eta_u(t), \eta_v(t), \eta_w(t) \sim \mathcal{N}(0,1)$ into wind velocity differential equations:
+
+$$
+\dot{u}_w = -\frac{V_{trim}}{L_u} u_w + \sigma_u \sqrt{\frac{2 V_{trim}}{\pi L_u}} \eta_u(t)
+$$
+
+$$
+\dot{v}_w = -\frac{V_{trim}}{L_v} v_w + \sigma_v \sqrt{\frac{3 V_{trim}}{\pi L_v}} \eta_v(t)
+$$
+
+$$
+\dot{w}_w = -\frac{V_{trim}}{L_w} w_w + \sigma_w \sqrt{\frac{3 V_{trim}}{\pi L_w}} \eta_w(t)
+$$
+
+A deterministic crosswind step gust $v_{gust}$ ($15.0\text{ m/s}$ crosswind step at $t = t_{gust}$) is added to the lateral wind component:
+
+$$
+v_{wind,total}(t) = v_w(t) + v_{gust} \cdot H(t - t_{gust})
+$$
+
+where $H(\cdot)$ is the Heaviside step function.
 
 ---
 
-## 3. Step-by-Step Numerical Toy Example
+#### 2.6.2 Transformation into Aircraft Body Frame via Quaternion Rotation Matrix
+The inertial wind vector $\mathbf{V}_{wind,i} = [u_{wind}, v_{wind}, w_{wind}]^T$ is rotated into the aircraft body frame using the transposed Direction Cosine Matrix $R(q)^T = R(\bar{q})$ computed directly from the current unit attitude quaternion $q = [q_w, q_x, q_y, q_z]^T$:
+
+$$
+\mathbf{V}_{wind,b} = R(q)^T \mathbf{V}_{wind,i}
+$$
+
+$$
+R(q)^T = \begin{bmatrix}
+q_w^2 + q_x^2 - q_y^2 - q_z^2 & 2(q_x q_y + q_w q_z) & 2(q_x q_z - q_w q_y) \\\\
+2(q_x q_y - q_w q_z) & q_w^2 - q_x^2 + q_y^2 - q_z^2 & 2(q_y q_z + q_w q_x) \\\\
+2(q_x q_z + q_w q_y) & 2(q_y q_z - q_w q_x) & q_w^2 - q_x^2 - q_y^2 + q_z^2
+\end{bmatrix}
+$$
+
+The **true aerodynamic relative velocity vector** $\mathbf{V}_{rel,b} = [u_r, v_r, w_r]^T$ experienced by the aircraft control surfaces is:
+
+$$
+\mathbf{V}_{rel,b} = \mathbf{V}_b - \mathbf{V}_{wind,b} = \mathbf{V}_b - R(q)^T \mathbf{V}_{wind,i}
+$$
+
+Total relative airspeed $V_{rel} = \|\mathbf{V}_{rel,b}\| = \sqrt{u_r^2 + v_r^2 + w_r^2}$, with instantaneous aerodynamic angle of attack $\alpha_{aero}$ and sideslip angle $\beta_{aero}$:
+
+$$
+\alpha_{aero} = \arctan\left(\frac{w_r}{u_r}\right), \quad \beta_{aero} = \arcsin\left(\frac{v_r}{V_{rel}}\right)
+$$
+
+---
+
+#### 2.6.3 Disturbance Torques & 6-DOF Rigid-Body Kinetics Integration
+The wind turbulence induces external aerodynamic disturbance moments $\boldsymbol{\tau}_{dist} = [\tau_{dist,x}, \tau_{dist,y}, \tau_{dist,z}]^T$ acting at the center of pressure:
+
+$$
+\boldsymbol{\tau}_{dist} = \frac{1}{2} \rho V_{rel}^2 S \begin{bmatrix}
+b \, C_{l,\beta} \beta_{aero} \\\\
+c \, C_{m,\alpha} (\alpha_{aero} - \alpha_0) \\\\
+b \, C_{n,\beta} \beta_{aero}
+\end{bmatrix} + \mathbf{r}_{cp} \times \mathbf{F}_{gust}
+$$
+
+The non-linear 6-DOF rotational kinetics of the aircraft under control moments $\boldsymbol{\tau}_{ctrl}$ and disturbance moments $\boldsymbol{\tau}_{dist}$ are governed by Euler's rigid-body dynamics equation:
+
+$$
+J \dot{\boldsymbol{\omega}}_b + \boldsymbol{\omega}_b \times (J \boldsymbol{\omega}_b) = \boldsymbol{\tau}_{ctrl} + \boldsymbol{\tau}_{dist}
+$$
+
+where $J = \text{diag}(J_{xx}, J_{yy}, J_{zz})$ is the aircraft moment of inertia matrix and $\boldsymbol{\omega}_b = [p, q, r]^T$ is the body angular rate vector.
+
+---
+
+#### 2.6.4 Quaternion Kinematic Rate Differential Equation
+The temporal evolution of the unit attitude quaternion $q(t)$ under body angular rates $\boldsymbol{\omega}_b(t)$ perturbed by atmospheric turbulence is propagated strictly through the non-singular quaternion kinematic differential equation:
+
+$$
+\dot{q} = \frac{1}{2} q \otimes \boldsymbol{\omega}_b = \frac{1}{2} \begin{bmatrix} 
+0 & -p & -q & -r \\\\
+p & 0 & r & -q \\\\
+q & -r & 0 & p \\\\
+r & q & -p & 0 
+\end{bmatrix} \begin{bmatrix} q_w \\\\ q_x \\\\ q_y \\\\ q_z \end{bmatrix}
+$$
+
+Because this differential equation operates directly in unit quaternion space $Sp(1)$, **no trigonometric functions ($\tan\theta, \sec\theta$) or pitch angle divisions exist**. Consequently, when severe crosswind turbulence induces extreme transient pitch/roll excursions, the quaternion kinematic propagation remains 100% numerically stable and non-singular!
+
+---
 
 ### Problem Scenario Setup
 
