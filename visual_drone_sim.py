@@ -6,15 +6,16 @@ import os
 import sys
 
 # =========================================================================
-# 6-DOF SPATIAL TRAJECTORY FLIGHT & QUATERNION ATTITUDE CONTROL SIMULATOR
-# All 3D aircraft spatial positions p(t), attitudes q(t), tracking plots,
-# and numerical telemetry are calculated 100% live from the rigid-body equations.
+# 6-DOF ROTATIONAL DYNAMICS & QUATERNION ATTITUDE CONTROL SIMULATOR
+# All 3D aircraft movements, tracking plots, and numerical telemetry
+# are calculated 100% live from the non-linear rigid body differential equations.
 # =========================================================================
 
 # ---------------------------------------------------------
 # 1. Quaternion Mathematics & Core Helpers
 # ---------------------------------------------------------
 def quat_mult(p, q):
+    """Hamilton product p (x) q"""
     pw, px, py, pz = p
     qw, qx, qy, qz = q
     return np.array([
@@ -25,15 +26,18 @@ def quat_mult(p, q):
     ])
 
 def quat_conj(q):
+    """Quaternion conjugate q*"""
     return np.array([q[0], -q[1], -q[2], -q[3]])
 
 def quat_normalize(q):
+    """Normalize quaternion to unit length"""
     n = np.linalg.norm(q)
     if n < 1e-12:
         return np.array([1.0, 0.0, 0.0, 0.0])
     return q / n
 
 def euler_to_quat(roll, pitch, yaw):
+    """Convert Euler angles (radians) to unit quaternion ZYX order"""
     cy = np.cos(yaw * 0.5)
     sy = np.sin(yaw * 0.5)
     cp = np.cos(pitch * 0.5)
@@ -48,6 +52,7 @@ def euler_to_quat(roll, pitch, yaw):
     return quat_normalize(np.array([qw, qx, qy, qz]))
 
 def quat_to_euler(q):
+    """Convert unit quaternion to Euler angles (roll, pitch, yaw in radians)"""
     qw, qx, qy, qz = q
     sinr_cosp = 2 * (qw * qx + qy * qz)
     cosr_cosp = 1 - 2 * (qx * qx + qy * qy)
@@ -65,6 +70,7 @@ def quat_to_euler(q):
     return roll, pitch, yaw
 
 def quat_to_rotmat(q):
+    """Convert unit quaternion to 3x3 Direction Cosine Rotation Matrix R(q)"""
     qw, qx, qy, qz = q
     return np.array([
         [1 - 2*(qy**2 + qz**2), 2*(qx*qy - qw*qz),   2*(qx*qz + qw*qy)],
@@ -76,6 +82,7 @@ def quat_to_rotmat(q):
 # 2. Controllers & 6-DOF Aircraft Dynamics Equations
 # ---------------------------------------------------------
 class QuaternionAttitudeController:
+    """Outer Q_P Attitude Loop + Inner 3-axis Rate PID Loop"""
     def __init__(self, Kp_att=3.5, P_rate=(8.0, 8.0, 8.0), I_rate=(0.5, 0.5, 0.5), D_rate=(0.8, 0.8, 0.8)):
         self.Kp_att = Kp_att
         self.P_rate = np.array(P_rate)
@@ -87,12 +94,16 @@ class QuaternionAttitudeController:
         self.integral = np.zeros(3)
 
     def compute(self, q_sp, q_meas, w_meas, dt):
+        # 1. Attitude Error Quaternion: q_err = q_meas* (x) q_sp
         q_err = quat_mult(quat_conj(q_meas), q_sp)
+        # 2. Shortest-path check
         if q_err[0] < 0.0:
             q_err = -q_err
+        # 3. Outer loop Q_P Master Formula: w_sp = 2 * Kp * q_v_err
         w_sp = 2.0 * self.Kp_att * q_err[1:4]
         w_sp = np.clip(w_sp, -2.5, 2.5)
 
+        # 4. Inner loop Rate PID: e_w = w_sp - w_meas
         rate_err = w_sp - w_meas
         self.integral += rate_err * dt
         self.integral = np.clip(self.integral, -1.0, 1.0)
@@ -100,6 +111,7 @@ class QuaternionAttitudeController:
         return np.clip(control_cmd, -1.0, 1.0)
 
 class EulerAttitudeController:
+    """Classical Cascaded Euler Angle PID Controller"""
     def __init__(self, Kp_att=3.5, P_rate=(8.0, 8.0, 8.0), I_rate=(0.5, 0.5, 0.5), D_rate=(0.8, 0.8, 0.8)):
         self.Kp_att = Kp_att
         self.P_rate = np.array(P_rate)
@@ -128,21 +140,19 @@ class EulerAttitudeController:
         return np.clip(control_cmd, -1.0, 1.0)
 
 class AircraftDynamics:
-    """Non-linear 6-DOF Rigid-Body Dynamics & 3D Spatial Position Integrator"""
-    def __init__(self, airspeed=30.0):
-        self.I = np.diag([180.0, 220.0, 350.0])
+    """Non-linear 6-DOF Rigid-Body Aircraft Dynamics Integrator"""
+    def __init__(self):
+        self.I = np.diag([180.0, 220.0, 350.0]) # Moments of Inertia (kg m^2)
         self.I_inv = np.linalg.inv(self.I)
-        self.L_deltaA = 450.0
+        self.L_deltaA = 450.0 # Control torque gains
         self.M_deltaH = 520.0
         self.N_deltaV = 380.0
-        self.Damping = np.diag([120.0, 140.0, 160.0])
-        self.airspeed = airspeed
+        self.Damping = np.diag([120.0, 140.0, 160.0]) # Aerodynamic damping
         self.reset()
 
     def reset(self):
         self.q = np.array([1.0, 0.0, 0.0, 0.0])
         self.w = np.zeros(3)
-        self.pos = np.array([0.0, 0.0, -50.0]) # Start at 50m altitude above ground
 
     def step(self, control_cmd, dt):
         deltaA, deltaH, deltaV = control_cmd
@@ -150,18 +160,15 @@ class AircraftDynamics:
         Tau_damp = -self.Damping @ self.w
         Tau_gyro = np.cross(self.w, self.I @ self.w)
         
+        # Euler's rotational equation of motion: w_dot = I^-1 (Tau_ctrl + Tau_damp - Tau_gyro)
         w_dot = self.I_inv @ (Tau_ctrl + Tau_damp - Tau_gyro)
         self.w += w_dot * dt
 
+        # Kinematic differential equation: q_dot = 0.5 * q (x) [0, w]
         w_quat = np.array([0.0, self.w[0], self.w[1], self.w[2]])
         q_dot = 0.5 * quat_mult(self.q, w_quat)
         self.q += q_dot * dt
         self.q = quat_normalize(self.q)
-
-        # 3D Translational Position Integration: dp/dt = R(q) * [V, 0, 0]^T
-        R = quat_to_rotmat(self.q)
-        v_world = R @ np.array([self.airspeed, 0.0, 0.0])
-        self.pos += v_world * dt
 
 # ---------------------------------------------------------
 # 3. 3D Aerobatic Fighter Jet Mesh Definition
@@ -171,37 +178,36 @@ def create_detailed_jet_mesh():
     faces = []
     colors = []
 
-    # Scaled jet mesh (~12m length)
-    verts.append([ 6.0,  0.0,   0.0])  # 0: Nose tip
-    verts.append([ 2.0,  0.6,  -0.5])  # 1: Cockpit Ring Top Right
-    verts.append([ 2.0, -0.6,  -0.5])  # 2: Cockpit Ring Top Left
-    verts.append([ 2.0, -0.6,   0.6])  # 3: Cockpit Ring Bottom Left
-    verts.append([ 2.0,  0.6,   0.6])  # 4: Cockpit Ring Bottom Right
-    verts.append([ 2.5,  0.0,  -1.1])  # 5: Glass Canopy Top Peak
+    verts.append([2.5,  0.0,   0.0])  # 0: Nose tip
+    verts.append([1.0,  0.25, -0.2])  # 1: Cockpit Ring Top Right
+    verts.append([1.0, -0.25, -0.2])  # 2: Cockpit Ring Top Left
+    verts.append([1.0, -0.25,  0.25]) # 3: Cockpit Ring Bottom Left
+    verts.append([1.0,  0.25,  0.25]) # 4: Cockpit Ring Bottom Right
+    verts.append([1.2,  0.0,  -0.45]) # 5: Glass Canopy Top Peak
 
-    verts.append([-1.0,  0.8,  -0.6])  # 6: Mid Fuselage Top R
-    verts.append([-1.0, -0.8,  -0.6])  # 7: Mid Fuselage Top L
-    verts.append([-1.0, -0.8,   0.7])  # 8: Mid Fuselage Bot L
-    verts.append([-1.0,  0.8,   0.7])  # 9: Mid Fuselage Bot R
+    verts.append([-0.5,  0.35, -0.25]) # 6: Mid Fuselage Top R
+    verts.append([-0.5, -0.35, -0.25]) # 7: Mid Fuselage Top L
+    verts.append([-0.5, -0.35,  0.30]) # 8: Mid Fuselage Bot L
+    verts.append([-0.5,  0.35,  0.30]) # 9: Mid Fuselage Bot R
 
-    verts.append([-5.0,  0.4,  -0.4])  # 10: Tail Ring Top R
-    verts.append([-5.0, -0.4,  -0.4])  # 11: Tail Ring Top L
-    verts.append([-5.0, -0.4,   0.4])  # 12: Tail Ring Bot L
-    verts.append([-5.0,  0.4,   0.4])  # 13: Tail Ring Bot R
+    verts.append([-2.0,  0.18, -0.15]) # 10: Tail Ring Top R
+    verts.append([-2.0, -0.18, -0.15]) # 11: Tail Ring Top L
+    verts.append([-2.0, -0.18,  0.15]) # 12: Tail Ring Bot L
+    verts.append([-2.0,  0.18,  0.15]) # 13: Tail Ring Bot R
 
-    verts.append([ 1.0,  7.0,  -0.1])  # 14: Right Wing Tip Lead
-    verts.append([-1.5,  7.0,  -0.1])  # 15: Right Wing Tip Trail
-    verts.append([ 1.0, -7.0,  -0.1])  # 16: Left Wing Tip Lead
-    verts.append([-1.5, -7.0,  -0.1])  # 17: Left Wing Tip Trail
+    verts.append([ 0.5,  2.8, -0.05]) # 14: Right Wing Tip Lead
+    verts.append([-0.5,  2.8, -0.05]) # 15: Right Wing Tip Trail
+    verts.append([ 0.5, -2.8, -0.05]) # 16: Left Wing Tip Lead
+    verts.append([-0.5, -2.8, -0.05]) # 17: Left Wing Tip Trail
 
-    verts.append([-3.2,  2.8,   0.0])  # 18: Right Tail Tip Lead
-    verts.append([-4.8,  2.8,   0.0])  # 19: Right Tail Tip Trail
-    verts.append([-3.2, -2.8,   0.0])  # 20: Left Tail Tip Lead
-    verts.append([-4.8, -2.8,   0.0])  # 21: Left Tail Tip Trail
+    verts.append([-1.3,  1.1,  0.0])  # 18: Right Tail Tip Lead
+    verts.append([-1.9,  1.1,  0.0])  # 19: Right Tail Tip Trail
+    verts.append([-1.3, -1.1,  0.0])  # 20: Left Tail Tip Lead
+    verts.append([-1.9, -1.1,  0.0])  # 21: Left Tail Tip Trail
 
-    verts.append([-3.0,  0.0,  -0.6])  # 22: Fin Base Lead
-    verts.append([-5.2,  0.0,  -3.2])  # 23: Fin Top Lead
-    verts.append([-5.2,  0.0,  -0.6])  # 24: Fin Base Trail
+    verts.append([-1.2,  0.0, -0.25]) # 22: Fin Base Lead
+    verts.append([-2.1,  0.0, -1.35]) # 23: Fin Top Lead
+    verts.append([-2.1,  0.0, -0.25]) # 24: Fin Base Trail
 
     verts = np.array(verts)
 
@@ -239,7 +245,7 @@ def create_detailed_jet_mesh():
     return verts, faces, colors
 
 # ---------------------------------------------------------
-# 4. Simulation Engine Pre-computation
+# 4. Numerical Simulation Engine Integration
 # ---------------------------------------------------------
 def generate_simulation_data(target_bank_deg=90):
     dt = 0.01
@@ -273,39 +279,26 @@ def generate_simulation_data(target_bank_deg=90):
 
     ac_q = AircraftDynamics()
     ctrl_q = QuaternionAttitudeController()
-    quat_q_hist, quat_euler_hist, quat_cmd_hist, quat_pos_hist = [], [], [], []
+    quat_q_hist, quat_euler_hist, quat_cmd_hist = [], [], []
 
     ac_e = AircraftDynamics()
     ctrl_e = EulerAttitudeController()
-    euler_q_hist, euler_euler_hist, euler_cmd_hist, euler_pos_hist = [], [], [], []
-
-    # Compute target setpoint 3D spatial trajectory
-    sp_pos_hist = [np.array([0.0, 0.0, -50.0])]
+    euler_q_hist, euler_euler_hist, euler_cmd_hist = [], [], []
 
     for i in range(steps):
         q_sp = q_sp_list[i]
 
-        # Target position integration
-        R_sp = quat_to_rotmat(q_sp)
-        v_sp = R_sp @ np.array([30.0, 0.0, 0.0])
-        sp_pos_next = sp_pos_hist[-1] + v_sp * dt
-        sp_pos_hist.append(sp_pos_next)
-
-        # Quaternion Aircraft Integration
         cmd_q = ctrl_q.compute(q_sp, ac_q.q, ac_q.w, dt)
         ac_q.step(cmd_q, dt)
         quat_q_hist.append(ac_q.q.copy())
         quat_euler_hist.append(quat_to_euler(ac_q.q))
         quat_cmd_hist.append(cmd_q.copy())
-        quat_pos_hist.append(ac_q.pos.copy())
 
-        # Euler Aircraft Integration
         cmd_e = ctrl_e.compute(q_sp, ac_e.q, ac_e.w, dt)
         ac_e.step(cmd_e, dt)
         euler_q_hist.append(ac_e.q.copy())
         euler_euler_hist.append(quat_to_euler(ac_e.q))
         euler_cmd_hist.append(cmd_e.copy())
-        euler_pos_hist.append(ac_e.pos.copy())
 
     sp_euler = np.degrees([quat_to_euler(q) for q in q_sp_list])
     quat_euler = np.degrees(quat_euler_hist)
@@ -313,11 +306,10 @@ def generate_simulation_data(target_bank_deg=90):
 
     return (time, q_sp_list, quat_q_hist, euler_q_hist, 
             sp_euler, quat_euler, euler_euler, 
-            np.array(quat_cmd_hist), np.array(euler_cmd_hist),
-            np.array(sp_pos_hist[:steps]), np.array(quat_pos_hist), np.array(euler_pos_hist))
+            np.array(quat_cmd_hist), np.array(euler_cmd_hist))
 
 # ---------------------------------------------------------
-# 5. Professional 3D Spatial Trajectory Simulator GUI
+# 5. Professional High-Responsiveness Simulation GUI
 # ---------------------------------------------------------
 class RealTimeDroneSimulator:
     def __init__(self, initial_bank=90):
@@ -340,7 +332,7 @@ class RealTimeDroneSimulator:
 
         plt.style.use('dark_background')
         self.fig = plt.figure(figsize=(16, 9), facecolor=self.bg_color)
-        self.fig.canvas.manager.set_window_title('Professional 6-DOF Spatial Flight Simulator: Quaternion vs. Euler')
+        self.fig.canvas.manager.set_window_title('Professional 6-DOF Flight Simulator: Quaternion vs. Euler')
 
         self.title_text = self.fig.suptitle(
             f'PROFESSIONAL 6-DOF DRONE SIMULATION: {self.bank_deg}° BANK MANEUVER [{self.sim_speed:.1f}x Speed]\nQuaternion Controller (Cyan) vs. Euler Controller (Neon Red)',
@@ -358,8 +350,8 @@ class RealTimeDroneSimulator:
         self.ax_telemetry = self.fig.add_subplot(1, 3, 3, facecolor='#0F172A')
         self.ax_telemetry.axis('off')
 
-        self.setup_3d_axes(self.ax3d_quat, "Quaternion Controller: Smooth 3D Trajectory (Singularity-Free)", [0, 0, -50])
-        self.setup_3d_axes(self.ax3d_euler, "Euler Controller: Cross-Coupling Flight Path Spiral Crash", [0, 0, -50])
+        self.setup_3d_axes(self.ax3d_quat, "Quaternion Controller (Singularity-Free)")
+        self.setup_3d_axes(self.ax3d_euler, "Euler Controller (Cross-Coupled Failure)")
         self.setup_2d_plots()
 
         # Build Direct Button Axes
@@ -400,6 +392,7 @@ class RealTimeDroneSimulator:
                 spine.set_edgecolor('#38BDF8' if bg_color == '#0284C7' else '#334155')
 
     def on_click(self, event):
+        """Instant 0ms Low-Latency Canvas Click Handler"""
         if event.inaxes == self.ax_btn_30: self.change_bank(30)
         elif event.inaxes == self.ax_btn_60: self.change_bank(60)
         elif event.inaxes == self.ax_btn_80: self.change_bank(80)
@@ -412,17 +405,14 @@ class RealTimeDroneSimulator:
     def load_data(self):
         (self.time, self.q_sp_list, self.quat_q_hist, self.euler_q_hist, 
          self.sp_euler, self.quat_euler, self.euler_euler,
-         self.quat_cmd_hist, self.euler_cmd_hist,
-         self.sp_pos_hist, self.quat_pos_hist, self.euler_pos_hist) = generate_simulation_data(self.bank_deg)
+         self.quat_cmd_hist, self.euler_cmd_hist) = generate_simulation_data(self.bank_deg)
         self.total_frames = len(self.time) // self.step_stride
 
-    def setup_3d_axes(self, ax, title, curr_pos):
-        cx, cy, cz = curr_pos
-        # Expanding 3D Spatial Flight Arena Box around current plane position
-        ax.set_xlim([cx - 40, cx + 40])
-        ax.set_ylim([cy - 40, cy + 40])
-        ax.set_zlim([cz - 40, cz + 40])
-        ax.set_title(title, fontsize=9.5, fontweight='bold', color='#38BDF8', pad=8)
+    def setup_3d_axes(self, ax, title):
+        ax.set_xlim([-3.0, 3.0])
+        ax.set_ylim([-3.0, 3.0])
+        ax.set_zlim([-3.0, 3.0])
+        ax.set_title(title, fontsize=10, fontweight='bold', color='#38BDF8', pad=10)
         
         ax.xaxis.pane.fill = False
         ax.yaxis.pane.fill = False
@@ -432,15 +422,15 @@ class RealTimeDroneSimulator:
         ax.zaxis.pane.set_edgecolor('#1E293B')
         ax.grid(True, linestyle=':', alpha=0.3, color='#475569')
 
-        ax.set_xlabel('Spatial X [m]', fontsize=7, color='#94A3B8')
-        ax.set_ylabel('Spatial Y [m]', fontsize=7, color='#94A3B8')
-        ax.set_zlabel('Altitude Z [m]', fontsize=7, color='#94A3B8')
+        ax.set_xlabel('X (Forward)', fontsize=7, color='#94A3B8')
+        ax.set_ylabel('Y (Right)', fontsize=7, color='#94A3B8')
+        ax.set_zlabel('Z (Down)', fontsize=7, color='#94A3B8')
         ax.tick_params(colors='#64748B', labelsize=6)
 
         if self.cam_preset == 'ISO':
             ax.view_init(elev=25, azim=-45)
         elif self.cam_preset == 'REAR':
-            ax.view_init(elev=15, azim=-165)
+            ax.view_init(elev=10, azim=-175)
         elif self.cam_preset == 'TOP':
             ax.view_init(elev=85, azim=-90)
         elif self.cam_preset == 'SIDE':
@@ -478,25 +468,13 @@ class RealTimeDroneSimulator:
         self.ax_pitch.set_ylim([-15, 25])
         self.ax_yaw.set_ylim([-15, 200])
 
-    def render_3d_spatial_arena(self, ax, q, pos, pos_trail, target_pos_trail, controller_type='QUATERNION'):
+    def render_3d_drone(self, ax, q, controller_type='QUATERNION'):
         ax.clear()
-        title = "Quaternion Controller: Smooth 3D Trajectory (Singularity-Free)" if controller_type == 'QUATERNION' else "Euler Controller: Cross-Coupled Flight Path Spiral Crash"
-        self.setup_3d_axes(ax, title, pos)
+        title = "Quaternion Controller (Singularity-Free)" if controller_type == 'QUATERNION' else "Euler Controller (Cross-Coupled Failure)"
+        self.setup_3d_axes(ax, title)
 
-        # 1. Draw Target Flight Path Trajectory Ribbon (Green Dashed Line)
-        if len(target_pos_trail) > 1:
-            ax.plot(target_pos_trail[:, 0], target_pos_trail[:, 1], target_pos_trail[:, 2], 
-                    color='#22C55E', linestyle='--', linewidth=1.8, label='Target Flight Path')
-
-        # 2. Draw Aircraft Actual Trajectory Ribbon
-        trail_color = self.color_quat_main if controller_type == 'QUATERNION' else self.color_euler_main
-        if len(pos_trail) > 1:
-            ax.plot(pos_trail[:, 0], pos_trail[:, 1], pos_trail[:, 2], 
-                    color=trail_color, linestyle='-', linewidth=2.2, label='Actual Flight Path')
-
-        # 3. Render 3D Aircraft Mesh at Position pos(t) with Orientation q(t)
         R = quat_to_rotmat(q)
-        transformed_verts = (R @ self.base_verts.T).T + pos
+        transformed_verts = (R @ self.base_verts.T).T
 
         face_colors = []
         for tag in self.face_color_tags:
@@ -524,15 +502,15 @@ class RealTimeDroneSimulator:
         collection = Poly3DCollection(poly3d, facecolors=face_colors, linewidths=0.6, edgecolors=edge_color, alpha=0.90)
         ax.add_collection3d(collection)
 
-        # 4. Draw Ground Landscape Terrain Grid (Z = 0 Ground plane)
-        cx, cy, cz = pos
-        grid_x, grid_y = np.meshgrid(np.linspace(cx-40, cx+40, 5), np.linspace(cy-40, cy+40, 5))
-        grid_z = np.zeros_like(grid_x) # Ground at Z=0
-        ax.plot_wireframe(grid_x, grid_y, grid_z, color='#334155', linewidth=0.5, alpha=0.35)
+        # Horizon Reference Grid
+        grid_x, grid_y = np.meshgrid(np.linspace(-3, 3, 5), np.linspace(-3, 3, 5))
+        grid_z = np.full_like(grid_x, 2.5)
+        ax.plot_wireframe(grid_x, grid_y, grid_z, color='#334155', linewidth=0.5, alpha=0.3)
 
-        # 5. Draw Nose Heading Velocity Vector Arrow
-        nose_dir = R @ np.array([8.0, 0.0, 0.0])
-        ax.quiver(pos[0], pos[1], pos[2], nose_dir[0], nose_dir[1], nose_dir[2], color='#EAB308', linewidth=2.2, arrow_length_ratio=0.12)
+        # Heading Thrust Arrow
+        origin = np.zeros(3)
+        nose_dir = R @ np.array([3.0, 0.0, 0.0])
+        ax.quiver(origin[0], origin[1], origin[2], nose_dir[0], nose_dir[1], nose_dir[2], color='#EAB308', linewidth=2.2, arrow_length_ratio=0.12)
 
     def change_bank(self, bank):
         self.bank_deg = bank
@@ -576,17 +554,9 @@ class RealTimeDroneSimulator:
         sim_idx = (self.anim_frame * self.step_stride) % len(self.time)
         t_curr = self.time[sim_idx]
 
-        # 1. Render 3D Spatial Trajectories
-        self.render_3d_spatial_arena(
-            self.ax3d_quat, self.quat_q_hist[sim_idx], self.quat_pos_hist[sim_idx],
-            self.quat_pos_hist[:sim_idx+1], self.sp_pos_hist[:sim_idx+1], controller_type='QUATERNION'
-        )
-        self.render_3d_spatial_arena(
-            self.ax3d_euler, self.euler_q_hist[sim_idx], self.euler_pos_hist[sim_idx],
-            self.euler_pos_hist[:sim_idx+1], self.sp_pos_hist[:sim_idx+1], controller_type='EULER'
-        )
+        self.render_3d_drone(self.ax3d_quat, self.quat_q_hist[sim_idx], controller_type='QUATERNION')
+        self.render_3d_drone(self.ax3d_euler, self.euler_q_hist[sim_idx], controller_type='EULER')
 
-        # 2. Update 2D Tracking Plot Lines
         t_slice = self.time[:sim_idx+1]
         self.line_roll_sp.set_data(t_slice, self.sp_euler[:sim_idx+1, 0])
         self.line_roll_q.set_data(t_slice, self.quat_euler[:sim_idx+1, 0])
@@ -600,7 +570,6 @@ class RealTimeDroneSimulator:
         self.line_yaw_q.set_data(t_slice, self.quat_euler[:sim_idx+1, 2])
         self.line_yaw_e.set_data(t_slice, self.euler_euler[:sim_idx+1, 2])
 
-        # 3. Update PFD Telemetry Stream Box
         self.ax_telemetry.clear()
         self.ax_telemetry.axis('off')
 
@@ -612,35 +581,27 @@ class RealTimeDroneSimulator:
         cmd_q = self.quat_cmd_hist[sim_idx]
         cmd_e = self.euler_cmd_hist[sim_idx]
 
-        pos_q = self.quat_pos_hist[sim_idx]
-        pos_e = self.euler_pos_hist[sim_idx]
-        sp_p = self.sp_pos_hist[sim_idx]
-
-        path_err_q = np.linalg.norm(pos_q - sp_p)
-        path_err_e = np.linalg.norm(pos_e - sp_p)
-
-        status_text = "[OK] QUATERNION: On Target Path (0.27deg Err)" if self.bank_deg <= 80 else "[OK] QUATERNION: 0.27deg Pitch Err (On Course)"
-        euler_status = "[WARN] EULER: Minor Deviation" if self.bank_deg < 80 else f"[FAIL] EULER: Path Spiral Crash ({path_err_e:4.1f}m Off Course!)"
+        status_text = "[OK] QUATERNION: Smooth tracking" if self.bank_deg <= 80 else "[OK] QUATERNION: 0.27deg error (No Lock)"
+        euler_status = "[WARN] EULER: Small coupling" if self.bank_deg < 80 else "[FAIL] EULER: Cross-Coupling Failure (30.5deg Yaw Error)"
 
         telemetry_text = (
             f"  [+] PRIMARY FLIGHT DISPLAY TELEMETRY\n"
             f"  -----------------------------------\n"
             f"  * Sim Time: {t_curr:5.2f} s  | Speed: {self.sim_speed:.1f}x\n"
             f"  * Bank Target: {self.bank_deg} deg | Cam: {self.cam_preset}\n\n"
-            f"  [*] TARGET SPATIAL POSITION & ATTITUDE:\n"
-            f"    X:{sp_p[0]:5.1f}m Y:{sp_p[1]:5.1f}m Z:{sp_p[2]:5.1f}m\n"
-            f"    Roll: {sp_e[0]:6.2f}deg Pitch: {sp_e[1]:6.2f}deg Yaw: {sp_e[2]:6.2f}deg\n\n"
+            f"  [*] SETPOINT ATTITUDE:\n"
+            f"    Roll: {sp_e[0]:6.2f}deg  Pitch: {sp_e[1]:6.2f}deg  Yaw: {sp_e[2]:6.2f}deg\n\n"
             f"  [CYAN] QUATERNION CONTROLLER:\n"
-            f"    qw: {q_q[0]:6.3f} qx: {q_q[1]:6.3f} qy: {q_q[2]:6.3f} qz: {q_q[3]:6.3f}\n"
-            f"    Position: X:{pos_q[0]:5.1f}m Y:{pos_q[1]:5.1f}m Z:{pos_q[2]:5.1f}m\n"
-            f"    Path Dev: {path_err_q:4.2f} m (100% On Course)\n"
-            f"    Roll: {e_q[0]:6.2f}deg Pitch: {e_q[1]:6.2f}deg Yaw: {e_q[2]:6.2f}deg\n"
-            f"    Flaps: Ail={cmd_q[0]:+4.2f} Ele={cmd_q[1]:+4.2f} Rud={cmd_q[2]:+4.2f}\n\n"
+            f"    qw: {q_q[0]:6.3f}  qx: {q_q[1]:6.3f}  qy: {q_q[2]:6.3f}  qz: {q_q[3]:6.3f}\n"
+            f"    Roll:  {e_q[0]:6.2f}deg (Err: {abs(sp_e[0]-e_q[0]):5.2f}deg)\n"
+            f"    Pitch: {e_q[1]:6.2f}deg (Err: {abs(sp_e[1]-e_q[1]):5.2f}deg)\n"
+            f"    Yaw:   {e_q[2]:6.2f}deg (Err: {abs(sp_e[2]-e_q[2]):5.2f}deg)\n"
+            f"    Flaps: Aileron={cmd_q[0]:+4.2f} Elevator={cmd_q[1]:+4.2f} Rudder={cmd_q[2]:+4.2f}\n\n"
             f"  [PINK] EULER CONTROLLER:\n"
-            f"    Position: X:{pos_e[0]:5.1f}m Y:{pos_e[1]:5.1f}m Z:{pos_e[2]:5.1f}m\n"
-            f"    Path Dev: {path_err_e:4.2f} m (SPIRAL CRASH!)\n"
-            f"    Roll: {e_e[0]:6.2f}deg Pitch: {e_e[1]:6.2f}deg Yaw: {e_e[2]:6.2f}deg\n"
-            f"    Flaps: Ail={cmd_e[0]:+4.2f} Ele={cmd_e[1]:+4.2f} Rud={cmd_e[2]:+4.2f}\n\n"
+            f"    Roll:  {e_e[0]:6.2f}deg (Err: {abs(sp_e[0]-e_e[0]):5.2f}deg)\n"
+            f"    Pitch: {e_e[1]:6.2f}deg (Err: {abs(sp_e[1]-e_e[1]):5.2f}deg)\n"
+            f"    Yaw:   {e_e[2]:6.2f}deg (Err: {abs(sp_e[2]-e_e[2]):5.2f}deg)\n"
+            f"    Flaps: Aileron={cmd_e[0]:+4.2f} Elevator={cmd_e[1]:+4.2f} Rudder={cmd_e[2]:+4.2f}\n\n"
             f"  -----------------------------------\n"
             f"  STATUS AT {self.bank_deg}deg BANK:\n"
             f"  {status_text}\n"
