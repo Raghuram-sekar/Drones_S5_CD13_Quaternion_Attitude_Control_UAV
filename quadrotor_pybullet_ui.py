@@ -22,6 +22,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import tkinter as tk
 from scipy.spatial.transform import Rotation as R
 
 from gym_pybullet_drones.envs.CtrlAviary import CtrlAviary
@@ -298,17 +299,16 @@ def run_interactive_simulation():
     is_running = True
     current_mode = 0
 
-    # 3. Setup Synchronized Telemetry Dashboard (Full-History Plots + Unified Big Box Avionics Card)
+    # 3. Setup Synchronized Telemetry Dashboard (Pure Continuous Full-History Plots on Left)
     plt.ion()
-    fig = plt.figure(figsize=(7.8, 8.8))
+    fig, (ax_roll, ax_pitch, ax_yaw) = plt.subplots(3, 1, figsize=(6.2, 7.8))
     fig.canvas.manager.set_window_title('Live Flight Telemetry (Continuous Full-History Tracking)')
-    gs = gridspec.GridSpec(4, 1, height_ratios=[1, 1, 1, 0.72], hspace=0.38, top=0.96, bottom=0.03, left=0.10, right=0.95)
 
-    ax_roll = fig.add_subplot(gs[0])
-    ax_pitch = fig.add_subplot(gs[1])
-    ax_yaw = fig.add_subplot(gs[2])
-    ax_card = fig.add_subplot(gs[3])
-    ax_card.axis('off')
+    root = fig.canvas.manager.window
+    screen_w = root.winfo_screenwidth()
+    screen_h = root.winfo_screenheight()
+    # Position plots on the left side of the screen
+    root.geometry("540x700+30+40")
 
     ax_roll.set_title('Roll φ [deg] (Bank Angle)', fontweight='bold', fontsize=9.5, pad=4)
     ax_pitch.set_title('Pitch θ [deg] (Elevation)', fontweight='bold', fontsize=9.5, pad=4)
@@ -327,23 +327,67 @@ def run_interactive_simulation():
     line_pitch, = ax_pitch.plot([], [], color='#10B981', lw=2.0, label='Pitch θ')
     line_yaw, = ax_yaw.plot([], [], color='#3B82F6', lw=2.0, label='Yaw ψ')
 
-    # Big Box Container (Sleek dark avionics instrument card)
-    card_box = dict(boxstyle='round,pad=0.6,rounding_size=0.25', facecolor='#0B132B', edgecolor='#38BDF8', linewidth=1.6)
-
-    initial_card_text = (
-        ' ┌── FLIGHT STATUS ──────┐  ┌── SPEED & DYNAMICS ────┐  ┌── ATTITUDE ANGLES ────┐  ┌── NAVIGATION & ERROR ─┐\n'
-        ' │ Status: ACTIVE [FLY]  │  │ Airspeed:  0.00 m/s    │  │ Roll φ :  +0.0° (Bank) │  │ Altitude : 1.50 m    │\n'
-        ' │ Mode  : 1: Figure-8   │  │         :  0.00 km/h   │  │ Pitch θ:  +0.0°        │  │ Track Err: 0.000 m   │\n'
-        ' │ Time  :   0.00 s      │  │ TurnRate:  +0.0 deg/s  │  │ Yaw ψ  :  +0.0° (Turn) │  │ Lock-Free: 100% (Sp1)│\n'
-        ' └───────────────────────┘  └────────────────────────┘  └────────────────────────┘  └─────────────────────────┘'
-    )
-
-    info_text = ax_card.text(0.5, 0.5, initial_card_text, transform=ax_card.transAxes,
-                             fontsize=7.8, fontfamily='monospace', color='#F8FAFC',
-                             ha='center', va='center', bbox=card_box)
-
+    fig.tight_layout()
     fig.canvas.draw()
     fig.canvas.flush_events()
+
+    # 4. Setup Dedicated Flight Telemetry Strip on Right-Hand Side (Below start/stop controls)
+    strip_win = tk.Toplevel(root)
+    strip_win.title('Flight Telemetry')
+    strip_w, strip_h = 270, 440
+    # Position right under PyBullet right-hand panel controls on the right side
+    pos_x = max(100, screen_w - strip_w - 20)
+    pos_y = 260
+    strip_win.geometry(f"{strip_w}x{strip_h}+{pos_x}+{pos_y}")
+    strip_win.configure(bg='#0B132B')
+    strip_win.attributes('-topmost', True)
+
+    tk.Label(
+        strip_win,
+        text="FLIGHT TELEMETRY",
+        font=('Segoe UI', 10, 'bold'),
+        fg='#38BDF8',
+        bg='#0B132B'
+    ).pack(pady=(8, 4))
+
+    telem_var = tk.StringVar()
+    lbl_telem = tk.Label(
+        strip_win,
+        textvariable=telem_var,
+        font=('Consolas', 9),
+        fg='#F8FAFC',
+        bg='#16203B',
+        justify='left',
+        padx=10,
+        pady=8,
+        relief='solid',
+        bd=1
+    )
+    lbl_telem.pack(fill='both', expand=True, padx=8, pady=(0, 8))
+
+    def format_telemetry(state_str, mode_idx, t_sim, spd_mult, spd_m, turn_deg, rpy_deg, pos, err_norm):
+        m_name = trajectory_names[mode_idx].split(':')[1].strip()[:18]
+        return (
+            f"State    : {state_str}\n"
+            f"Mode     : {m_name}\n"
+            f"Time     : {t_sim:6.2f} s\n"
+            f"Sim Spd  : {spd_mult:4.1f} x\n\n"
+            f"── SPEED & DYNAMICS ──\n"
+            f"Airspeed : {spd_m:5.2f} m/s\n"
+            f"         : {spd_m*3.6:5.1f} km/h\n"
+            f"Turn Rate: {turn_deg:+5.1f} deg/s\n\n"
+            f"── ATTITUDE ANGLES ───\n"
+            f"Roll  φ  : {rpy_deg[0]:+5.1f}° (Bank)\n"
+            f"Pitch θ  : {rpy_deg[1]:+5.1f}°\n"
+            f"Yaw   ψ  : {rpy_deg[2]:+5.1f}° (Turn)\n\n"
+            f"── POSITION & ACCURACY\n"
+            f"Altitude : {pos[2]:5.2f} m\n"
+            f"Track Err: {err_norm:5.3f} m\n"
+            f"Quat Sp1 : Lock-Free"
+        )
+
+    telem_var.set(format_telemetry("ACTIVE [FLYING]", 0, 0.0, 1.0, 0.0, 0.0, [0.0, 0.0, 0.0], [0.0, 0.0, 1.5], 0.0))
+    strip_win.update()
 
     # Path lines tracking
     target_lines = []
@@ -430,6 +474,9 @@ def run_interactive_simulation():
             # Space key (ASCII 32)
             if 32 in keys and (keys[32] & p.KEY_WAS_TRIGGERED):
                 is_running = not is_running
+                stat_str = "ACTIVE [FLYING]" if is_running else "PAUSED [HOLD]"
+                telem_var.set(format_telemetry(stat_str, current_mode, sim_time, spd, 0.0, 0.0, [0.0, 0.0, 0.0], prev_actual_pos, 0.0))
+                strip_win.update_idletasks()
                 print(f"[STATUS] Simulation {'RESUMED' if is_running else 'PAUSED'} (via SPACE key)")
 
             # 'R' or 'r' key (ASCII 114 / 82)
@@ -454,8 +501,10 @@ def run_interactive_simulation():
                 line_yaw.set_data([], [])
                 for ax in [ax_roll, ax_pitch, ax_yaw]:
                     ax.set_xlim(0, 15)
-                info_text.set_text(initial_card_text)
+                stat_str = "ACTIVE [FLYING]" if is_running else "PAUSED [HOLD]"
+                telem_var.set(format_telemetry(stat_str, current_mode, 0.0, spd, 0.0, 0.0, [0.0, 0.0, 0.0], prev_actual_pos, 0.0))
                 fig.canvas.flush_events()
+                strip_win.update_idletasks()
                 draw_path(current_mode, alt)
                 print("[STATUS] Simulation RESET to origin (via R key)")
 
@@ -474,6 +523,9 @@ def run_interactive_simulation():
             if play_clicks != prev_play_clicks:
                 prev_play_clicks = play_clicks
                 is_running = not is_running
+                stat_str = "ACTIVE [FLYING]" if is_running else "PAUSED [HOLD]"
+                telem_var.set(format_telemetry(stat_str, current_mode, sim_time, spd, 0.0, 0.0, [0.0, 0.0, 0.0], prev_actual_pos, 0.0))
+                strip_win.update_idletasks()
                 print(f"[STATUS] Simulation {'RESUMED' if is_running else 'PAUSED'} (via GUI Button)")
 
             reset_clicks = p.readUserDebugParameter(param_reset, physicsClientId=client)
@@ -498,8 +550,10 @@ def run_interactive_simulation():
                 line_yaw.set_data([], [])
                 for ax in [ax_roll, ax_pitch, ax_yaw]:
                     ax.set_xlim(0, 15)
-                info_text.set_text(initial_card_text)
+                stat_str = "ACTIVE [FLYING]" if is_running else "PAUSED [HOLD]"
+                telem_var.set(format_telemetry(stat_str, current_mode, 0.0, spd, 0.0, 0.0, [0.0, 0.0, 0.0], prev_actual_pos, 0.0))
                 fig.canvas.flush_events()
+                strip_win.update_idletasks()
                 draw_path(current_mode, alt)
                 print("[STATUS] Simulation RESET to initial condition.")
 
@@ -558,7 +612,7 @@ def run_interactive_simulation():
                             pass
                     prev_actual_pos = current_pos
 
-                # Update 10 Hz Full-History Telemetry Plots & Unified Avionics Card
+                # Update 10 Hz Full-History Telemetry Plots & Dedicated Right-Hand Strip
                 if step_i % 24 == 0:
                     try:
                         line_roll.set_data(time_data, roll_data)
@@ -570,19 +624,12 @@ def run_interactive_simulation():
                         for ax in [ax_roll, ax_pitch, ax_yaw]:
                             ax.set_xlim(0.0, x_max)
 
-                        # Update Unified Big Box Avionics Card
-                        stat_label = "ACTIVE [FLY]" if is_running else "PAUSED [HLD]"
-                        mode_label = trajectory_names[current_mode].split(':')[1].strip()[:12]
-                        card_content = (
-                            f" ┌── FLIGHT STATUS ──────┐  ┌── SPEED & DYNAMICS ────┐  ┌── ATTITUDE ANGLES ────┐  ┌── NAVIGATION & ERROR ─┐\n"
-                            f" │ Status: {stat_label:<12} │  │ Airspeed:{speed_mag:6.2f} m/s    │  │ Roll φ :{current_rpy_deg[0]:+6.1f}° (Bank) │  │ Altitude :{current_pos[2]:6.2f} m    │\n"
-                            f" │ Mode  : {mode_label:<12} │  │         :{speed_mag*3.6:6.1f} km/h   │  │ Pitch θ:{current_rpy_deg[1]:+6.1f}°        │  │ Track Err:{pos_err_norm:6.3f} m   │\n"
-                            f" │ Time  :{sim_time:7.2f} s      │  │ TurnRate:{turn_rate_deg:+6.1f} deg/s  │  │ Yaw ψ  :{current_rpy_deg[2]:+6.1f}° (Turn) │  │ Lock-Free: 100% (Sp1)│\n"
-                            f" └───────────────────────┘  └────────────────────────┘  └────────────────────────┘  └─────────────────────────┘"
-                        )
-                        info_text.set_text(card_content)
+                        # Update Dedicated Right-Hand Telemetry Strip
+                        stat_label = "ACTIVE [FLYING]" if is_running else "PAUSED [HOLD]"
+                        telem_var.set(format_telemetry(stat_label, current_mode, sim_time, spd, speed_mag, turn_rate_deg, current_rpy_deg, current_pos, pos_err_norm))
 
                         fig.canvas.flush_events()
+                        strip_win.update_idletasks()
                     except Exception:
                         pass
 
@@ -594,6 +641,10 @@ def run_interactive_simulation():
             else:
                 # Keep GUI responsive while paused
                 fig.canvas.flush_events()
+                try:
+                    strip_win.update_idletasks()
+                except Exception:
+                    pass
                 time.sleep(0.02)
 
     except KeyboardInterrupt:
@@ -601,6 +652,10 @@ def run_interactive_simulation():
     except Exception as e:
         print(f"Exiting simulator: {e}")
     finally:
+        try:
+            strip_win.destroy()
+        except Exception:
+            pass
         try:
             env.close()
         except Exception:
