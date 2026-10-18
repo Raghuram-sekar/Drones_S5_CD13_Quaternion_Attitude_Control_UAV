@@ -284,12 +284,16 @@ def run_interactive_simulation():
     # Position camera comfortably showing drone and trajectory
     p.resetDebugVisualizerCamera(cameraDistance=2.5, cameraYaw=45, cameraPitch=-25, cameraTargetPosition=[0, 0, 1.5], physicsClientId=client)
 
-    # 2. Add Native Interactive Control Buttons & Sliders in PyBullet Viewport
+    # 2. Add Native Interactive Control Buttons & Sliders in PyBullet Viewport (Right Panel)
     param_play = p.addUserDebugParameter(" [1] PLAY / PAUSE (Click to Toggle)", 1, 0, 0, physicsClientId=client)
     param_reset = p.addUserDebugParameter(" [2] RESET SIMULATION (Click to Restart)", 1, 0, 0, physicsClientId=client)
     param_mode = p.addUserDebugParameter(" [3] TRAJECTORY (0:Fig8 | 1:Circ | 2:Helix | 3:Clover | 4:Slalom)", 0, 4, 0, physicsClientId=client)
     param_speed = p.addUserDebugParameter(" [4] FLIGHT SPEED MULTIPLIER", 0.5, 2.0, 1.0, physicsClientId=client)
     param_alt = p.addUserDebugParameter(" [5] ALTITUDE Z (m)", 0.5, 3.0, 1.5, physicsClientId=client)
+
+    # Section separator for live flight telemetry in PyBullet right-hand panel
+    p.addUserDebugParameter("───── LIVE FLIGHT TELEMETRY ─────", 1, 0, 0, physicsClientId=client)
+    live_info_ids = []
 
     # Initial read to record baseline click state
     prev_play_clicks = p.readUserDebugParameter(param_play, physicsClientId=client)
@@ -297,19 +301,10 @@ def run_interactive_simulation():
     is_running = True
     current_mode = 0
 
-    # 3. Setup Lightweight Synchronized Telemetry Dashboard (3 Plots on Left + Live Data Readout Box on Right)
+    # 3. Setup Lightweight Synchronized Telemetry Dashboard (Pure Full-History Plots)
     plt.ion()
-    fig = plt.figure(figsize=(9.2, 6.8))
-    fig.canvas.manager.set_window_title('Live Flight Telemetry & Attitude (Golabek et al. Q_P Controller)')
-
-    # Left Column: 3 Attitude Plots (Roll, Pitch, Yaw)
-    ax_roll = plt.subplot2grid((3, 3), (0, 0), colspan=2)
-    ax_pitch = plt.subplot2grid((3, 3), (1, 0), colspan=2)
-    ax_yaw = plt.subplot2grid((3, 3), (2, 0), colspan=2)
-
-    # Right Column: Data Readout Panel (Text Box)
-    ax_info = plt.subplot2grid((3, 3), (0, 2), rowspan=3)
-    ax_info.axis('off')
+    fig, (ax_roll, ax_pitch, ax_yaw) = plt.subplots(3, 1, figsize=(6.2, 7.5))
+    fig.canvas.manager.set_window_title('Live Flight Telemetry (Continuous Full-History Tracking)')
 
     ax_roll.set_title('Roll φ [deg] (Bank Angle)', fontweight='bold', fontsize=9)
     ax_pitch.set_title('Pitch θ [deg] (Elevation)', fontweight='bold', fontsize=9)
@@ -324,20 +319,9 @@ def run_interactive_simulation():
     ax_pitch.set_ylim(-35, 35)
     ax_yaw.set_ylim(-190, 190)
 
-    line_roll, = ax_roll.plot([], [], color='#FF5252', lw=1.8)
-    line_pitch, = ax_pitch.plot([], [], color='#69F0AE', lw=1.8)
-    line_yaw, = ax_yaw.plot([], [], color='#448AFF', lw=1.8)
-
-    # Live Numerical Readout Text on the Right Panel
-    info_text = ax_info.text(
-        0.05, 0.95,
-        "FLIGHT TELEMETRY\nInitializing...",
-        transform=ax_info.transAxes,
-        fontsize=9,
-        verticalalignment='top',
-        fontfamily='monospace',
-        bbox=dict(boxstyle='round,pad=0.8', facecolor='#F5F5F7', edgecolor='#B0BEC5', alpha=0.95)
-    )
+    line_roll, = ax_roll.plot([], [], color='#FF5252', lw=1.8, label='Roll φ')
+    line_pitch, = ax_pitch.plot([], [], color='#69F0AE', lw=1.8, label='Pitch θ')
+    line_yaw, = ax_yaw.plot([], [], color='#448AFF', lw=1.8, label='Yaw ψ')
 
     fig.tight_layout()
     fig.canvas.draw()
@@ -447,6 +431,12 @@ def run_interactive_simulation():
                     except Exception:
                         pass
                 trail_lines.clear()
+                for lid in live_info_ids:
+                    try:
+                        p.removeUserDebugItem(lid, physicsClientId=client)
+                    except Exception:
+                        pass
+                live_info_ids.clear()
                 draw_path(current_mode, alt)
                 print("[STATUS] Simulation RESET to origin (via R key)")
 
@@ -484,6 +474,12 @@ def run_interactive_simulation():
                     except Exception:
                         pass
                 trail_lines.clear()
+                for lid in live_info_ids:
+                    try:
+                        p.removeUserDebugItem(lid, physicsClientId=client)
+                    except Exception:
+                        pass
+                live_info_ids.clear()
                 draw_path(current_mode, alt)
                 print("[STATUS] Simulation RESET to initial condition.")
 
@@ -524,23 +520,17 @@ def run_interactive_simulation():
 
                 pos_err_norm = float(np.linalg.norm(pos_error))
 
-                # Record Telemetry
+                # Record Continuous Full History (Never discarded so all previous turns remain visible)
                 time_data.append(sim_time)
                 roll_data.append(current_rpy_deg[0])
                 pitch_data.append(current_rpy_deg[1])
                 yaw_data.append(current_rpy_deg[2])
 
-                if len(time_data) > 300:
-                    time_data.pop(0)
-                    roll_data.pop(0)
-                    pitch_data.pop(0)
-                    yaw_data.pop(0)
-
                 # Draw Blue Trailing Path
                 if step_i % 6 == 0:
                     lid = p.addUserDebugLine(prev_actual_pos, current_pos, [0, 0, 1], 2.0, 0, physicsClientId=client)
                     trail_lines.append(lid)
-                    if len(trail_lines) > 250:
+                    if len(trail_lines) > 350:
                         old_lid = trail_lines.pop(0)
                         try:
                             p.removeUserDebugItem(old_lid, physicsClientId=client)
@@ -548,59 +538,37 @@ def run_interactive_simulation():
                             pass
                     prev_actual_pos = current_pos
 
-                # Update 10 Hz Telemetry Plots & Live Text Readout Panel
+                # Update 10 Hz Full-History Telemetry Plots
                 if step_i % 24 == 0:
                     try:
                         line_roll.set_data(time_data, roll_data)
                         line_pitch.set_data(time_data, pitch_data)
                         line_yaw.set_data(time_data, yaw_data)
 
+                        # Progressive Auto-Expanding X-Axis (Keeps all past history visible from t = 0 to now)
+                        x_max = max(15.0, sim_time + 1.0)
                         for ax in [ax_roll, ax_pitch, ax_yaw]:
-                            ax.set_xlim(max(0, sim_time - 12), sim_time + 1)
-
-                        # Update Right-Side Telemetry Text Box
-                        m_label = trajectory_names[current_mode]
-                        stat_label = "ACTIVE [FLYING]" if is_running else "PAUSED [HOLD]"
-                        panel_text = (
-                            f"┌──────────────────────────────┐\n"
-                            f"│    FLIGHT STATUS & TELEMETRY │\n"
-                            f"├──────────────────────────────┤\n"
-                            f"  State    : {stat_label}\n"
-                            f"  Time     : {sim_time:5.2f} s\n"
-                            f"  Sim Spd  : {spd:4.1f} x\n"
-                            f"  Path     : {m_label}\n"
-                            f"├──────────────────────────────┤\n"
-                            f"  SPEED & DYNAMICS:\n"
-                            f"  Airspeed : {speed_mag:4.2f} m/s\n"
-                            f"           : {speed_mag*3.6:4.1f} km/h\n"
-                            f"  Turn Rate: {turn_rate_deg:+5.1f} deg/s\n"
-                            f"├──────────────────────────────┤\n"
-                            f"  ATTITUDE ANGLES:\n"
-                            f"  Roll  φ  : {current_rpy_deg[0]:+5.1f}° (Bank)\n"
-                            f"  Pitch θ  : {current_rpy_deg[1]:+5.1f}°\n"
-                            f"  Yaw   ψ  : {current_rpy_deg[2]:+5.1f}° (Turn)\n"
-                            f"├──────────────────────────────┤\n"
-                            f"  POSITION & ACCURACY:\n"
-                            f"  Pos X    : {current_pos[0]:+5.2f} m\n"
-                            f"  Pos Y    : {current_pos[1]:+5.2f} m\n"
-                            f"  Altitude : {current_pos[2]:5.2f} m\n"
-                            f"  Pos Error: {pos_err_norm:5.3f} m\n"
-                            f"├──────────────────────────────┤\n"
-                            f"  UNIT QUATERNION (Sp(1)):\n"
-                            f"  qw : {current_quat[3]:+6.3f}\n"
-                            f"  qx : {current_quat[0]:+6.3f}\n"
-                            f"  qy : {current_quat[1]:+6.3f}\n"
-                            f"  qz : {current_quat[2]:+6.3f}\n"
-                            f"  Singularity : ZERO (No Lock)\n"
-                            f"└──────────────────────────────┘\n"
-                            f" Controls: [SPACE]=Pause | [R]=Reset\n"
-                            f" Trajectories: Keys [1] to [5]"
-                        )
-                        info_text.set_text(panel_text)
+                            ax.set_xlim(0.0, x_max)
 
                         fig.canvas.flush_events()
                     except Exception:
                         pass
+
+                # Update Live Dynamic Readouts in PyBullet Right Panel (~4 Hz)
+                if step_i % 60 == 0:
+                    for lid in live_info_ids:
+                        try:
+                            p.removeUserDebugItem(lid, physicsClientId=client)
+                        except Exception:
+                            pass
+                    live_info_ids = [
+                        p.addUserDebugParameter(f"  Airspeed: {speed_mag:4.2f} m/s ({speed_mag*3.6:4.1f} km/h)", 1, 0, 0, physicsClientId=client),
+                        p.addUserDebugParameter(f"  Turn Rate: {turn_rate_deg:+5.1f} deg/s", 1, 0, 0, physicsClientId=client),
+                        p.addUserDebugParameter(f"  Bank Angle: {current_rpy_deg[0]:+5.1f} deg", 1, 0, 0, physicsClientId=client),
+                        p.addUserDebugParameter(f"  Pitch: {current_rpy_deg[1]:+5.1f} deg | Yaw: {current_rpy_deg[2]:+5.1f} deg", 1, 0, 0, physicsClientId=client),
+                        p.addUserDebugParameter(f"  Track Error: {pos_err_norm:5.3f} m", 1, 0, 0, physicsClientId=client),
+                        p.addUserDebugParameter(f"  Altitude: {current_pos[2]:4.2f} m", 1, 0, 0, physicsClientId=client),
+                    ]
 
                 # Step through exact Gym environment physics
                 obs, reward, terminated, truncated, info = env.step(np.array([action]))
@@ -617,6 +585,11 @@ def run_interactive_simulation():
     except Exception as e:
         print(f"Exiting simulator: {e}")
     finally:
+        for lid in live_info_ids:
+            try:
+                p.removeUserDebugItem(lid, physicsClientId=client)
+            except Exception:
+                pass
         try:
             env.close()
         except Exception:
