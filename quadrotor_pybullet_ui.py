@@ -306,7 +306,24 @@ def run_interactive_simulation():
     step_i = 0
 
     print(">> CtrlAviary Flight Simulator Active & Running smoothly!")
-    print(">> Click '[1] PLAY / PAUSE' or '[2] RESET SIMULATION' on the top-right panel to interact.")
+    print(">> KEYBOARD SHORTCUTS:")
+    print(">>   [SPACE] : Play / Pause")
+    print(">>   [R]     : Reset Simulation")
+    print(">>   [1/2/3] : Switch Trajectory (1: Fig-8, 2: Circle, 3: Hover)")
+    print(">> Controls also clickable on the top-right PyBullet panel.")
+
+    status_text_id = -1
+
+    def update_hud_text(running, mode_idx, spd_val, alt_val):
+        nonlocal status_text_id
+        msg = f"STATUS: {'[FLYING]' if running else '[PAUSED]'} | Mode: {['Fig-8', 'Circle', 'Hover'][mode_idx]} | Spd: {spd_val:.1f}x | [SPACE]=Pause, [R]=Reset"
+        col = [0.0, 1.0, 0.4] if running else [1.0, 0.6, 0.0]
+        if status_text_id == -1:
+            status_text_id = p.addUserDebugText(msg, [-2.2, 0.0, alt_val + 0.8], col, 1.3, physicsClientId=client)
+        else:
+            status_text_id = p.addUserDebugText(msg, [-2.2, 0.0, alt_val + 0.8], col, 1.3, replaceItemUniqueId=status_text_id, physicsClientId=client)
+
+    update_hud_text(is_running, current_mode, 1.0, 1.5)
 
     try:
         while True:
@@ -317,14 +334,51 @@ def run_interactive_simulation():
             except Exception:
                 break
 
-            # Play / Pause Toggle
+            # 1. Process Instant Keyboard Shortcuts ([SPACE] = Pause, [R] = Reset)
+            keys = p.getKeyboardEvents(physicsClientId=client)
+            # Space key (ASCII 32)
+            if 32 in keys and (keys[32] & p.KEY_WAS_TRIGGERED):
+                is_running = not is_running
+                update_hud_text(is_running, current_mode, spd, alt)
+                print(f"[STATUS] Simulation {'RESUMED' if is_running else 'PAUSED'} (via SPACE key)")
+
+            # 'R' or 'r' key (ASCII 114 / 82)
+            if (ord('r') in keys and keys[ord('r')] & p.KEY_WAS_TRIGGERED) or \
+               (ord('R') in keys and keys[ord('R')] & p.KEY_WAS_TRIGGERED):
+                sim_time = 0.0
+                obs, info = env.reset()
+                ctrl.reset_all_states()
+                prev_actual_pos = obs[0][0:3]
+                time_data.clear()
+                roll_data.clear()
+                pitch_data.clear()
+                yaw_data.clear()
+                for lid in trail_lines:
+                    try:
+                        p.removeUserDebugItem(lid, physicsClientId=client)
+                    except Exception:
+                        pass
+                trail_lines.clear()
+                draw_path(current_mode, alt)
+                update_hud_text(is_running, current_mode, spd, alt)
+                print("[STATUS] Simulation RESET to origin (via R key)")
+
+            # '1', '2', '3' keys to switch trajectory modes
+            for k_code, m_idx in [(ord('1'), 0), (ord('2'), 1), (ord('3'), 2)]:
+                if k_code in keys and (keys[k_code] & p.KEY_WAS_TRIGGERED):
+                    current_mode = m_idx
+                    draw_path(current_mode, alt)
+                    update_hud_text(is_running, current_mode, spd, alt)
+                    print(f"[STATUS] Switched to trajectory: {['Figure-8', 'Circle', 'Hover'][current_mode]}")
+
+            # 2. Check GUI Button Clicks
             play_clicks = p.readUserDebugParameter(param_play, physicsClientId=client)
             if play_clicks != prev_play_clicks:
                 prev_play_clicks = play_clicks
                 is_running = not is_running
-                print(f"[STATUS] Simulation {'RESUMED' if is_running else 'PAUSED'}")
+                update_hud_text(is_running, current_mode, spd, alt)
+                print(f"[STATUS] Simulation {'RESUMED' if is_running else 'PAUSED'} (via GUI Button)")
 
-            # Reset Trigger
             reset_clicks = p.readUserDebugParameter(param_reset, physicsClientId=client)
             if reset_clicks != prev_reset_clicks:
                 prev_reset_clicks = reset_clicks
@@ -342,9 +396,8 @@ def run_interactive_simulation():
                     except Exception:
                         pass
                 trail_lines.clear()
-                m = int(round(p.readUserDebugParameter(param_mode, physicsClientId=client)))
-                a = p.readUserDebugParameter(param_alt, physicsClientId=client)
-                draw_path(m, a)
+                draw_path(current_mode, alt)
+                update_hud_text(is_running, current_mode, spd, alt)
                 print("[STATUS] Simulation RESET to initial condition.")
 
             # Read sliders
@@ -355,6 +408,7 @@ def run_interactive_simulation():
             if m != current_mode:
                 current_mode = m
                 draw_path(current_mode, alt)
+                update_hud_text(is_running, current_mode, spd, alt)
 
             if is_running:
                 current_state = obs[0]
