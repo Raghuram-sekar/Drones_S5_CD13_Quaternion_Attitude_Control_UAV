@@ -59,7 +59,7 @@ When an aircraft pitches vertically to $\theta = \pm 90^\circ$, the Roll axis ($
 Mathematically, the kinematic differential equation mapping body angular rates $(p, q, r)$ to Euler angle rates $(\dot{\phi}, \dot{\theta}, \dot{\psi})$ contains tangent and secant functions of pitch angle $\theta$:
 
 $$
-\begin{bmatrix} \dot{\phi} \\ \dot{\theta} \\ \dot{\psi} \end{bmatrix} = \begin{bmatrix} 1 & \sin\phi \tan\theta & \cos\phi \tan\theta \\ 0 & \cos\phi & -\sin\phi \\ 0 & \sin\phi \sec\theta & \cos\phi \sec\theta \end{bmatrix} \begin{bmatrix} p \\ q \\ r \end{bmatrix}
+\begin{bmatrix} \dot{\phi} \\\\ \dot{\theta} \\\\ \dot{\psi} \end{bmatrix} = \begin{bmatrix} 1 & \sin\phi \tan\theta & \cos\phi \tan\theta \\\\ 0 & \cos\phi & -\sin\phi \\\\ 0 & \sin\phi \sec\theta & \cos\phi \sec\theta \end{bmatrix} \begin{bmatrix} p \\\\ q \\\\ r \end{bmatrix}
 $$
 
 As $\theta \to \pm 90^\circ$, $\tan(90^\circ) \to \infty$ and $\sec(90^\circ) \to \infty$. The flight control computer encounters an unavoidable **divide-by-zero numerical overflow** and crashes.
@@ -111,7 +111,7 @@ To overcome all 3 limitations, this project implements a non-singular **Quaterni
 A unit quaternion $q \in \mathbb{H}$ represents 3D orientation without singularities:
 
 $$
-q = \begin{bmatrix} q_w \\ q_x \\ q_y \\ q_z \end{bmatrix} = q_w + q_x \mathbf{i} + q_y \mathbf{j} + q_z \mathbf{k}
+q = \begin{bmatrix} q_w \\\\ q_x \\\\ q_y \\\\ q_z \end{bmatrix} = q_w + q_x \mathbf{i} + q_y \mathbf{j} + q_z \mathbf{k}
 $$
 
 where $q_w \in \mathbb{R}$ is the scalar part and $\mathbf{q}_v = [q_x, q_y, q_z]^T \in \mathbb{R}^3$ is the vector imaginary part.
@@ -121,16 +121,16 @@ Unit quaternions satisfy the unit norm constraint $\|q\| = \sqrt{q_w^2 + q_x^2 +
 The **Quaternion Conjugate** $\bar{q}$ and **Inverse**$q^{-1}$(for unit quaternions) are defined as:
 
 $$
-\bar{q} = \begin{bmatrix} q_w \\ -q_x \\ -q_y \\ -q_z \end{bmatrix}, \quad q^{-1} = \bar{q}
+\bar{q} = \begin{bmatrix} q_w \\\\ -q_x \\\\ -q_y \\\\ -q_z \end{bmatrix}, \quad q^{-1} = \bar{q}
 $$
 
 The **Hamilton Product** ($p \otimes q$) represents composite spatial rotations:
 
 $$
 p \otimes q = \begin{bmatrix} 
-p_w q_w - p_x q_x - p_y q_y - p_z q_z \\
-p_w q_x + p_x q_w + p_y q_z - p_z q_y \\
-p_w q_y - p_x q_z + p_y q_w + p_z q_x \\
+p_w q_w - p_x q_x - p_y q_y - p_z q_z \\\\
+p_w q_x + p_x q_w + p_y q_z - p_z q_y \\\\
+p_w q_y - p_x q_z + p_y q_w + p_z q_x \\\\
 p_w q_z + p_x q_y - p_y q_x + p_z q_w 
 \end{bmatrix}
 $$
@@ -139,8 +139,8 @@ The **Direction Cosine Rotation Matrix** $R(q) \in SO(3)$ transforming vectors f
 
 $$
 R(q) = \begin{bmatrix} 
-q_w^2 + q_x^2 - q_y^2 - q_z^2 & 2(q_x q_y - q_w q_z) & 2(q_x q_z + q_w q_y) \\
-2(q_x q_y + q_w q_z) & q_w^2 - q_x^2 + q_y^2 - q_z^2 & 2(q_y q_z - q_w q_x) \\
+q_w^2 + q_x^2 - q_y^2 - q_z^2 & 2(q_x q_y - q_w q_z) & 2(q_x q_z + q_w q_y) \\\\
+2(q_x q_y + q_w q_z) & q_w^2 - q_x^2 + q_y^2 - q_z^2 & 2(q_y q_z - q_w q_x) \\\\
 2(q_x q_z - q_w q_y) & 2(q_y q_z + q_w q_x) & q_w^2 - q_x^2 - q_y^2 + q_z^2 
 \end{bmatrix}
 $$
@@ -149,9 +149,9 @@ Conversion from Euler angles $(\phi, \theta, \psi)$ to unit quaternion:
 
 $$
 q = \begin{bmatrix} 
-\cos(\phi/2)\cos(\theta/2)\cos(\psi/2) + \sin(\phi/2)\sin(\theta/2)\sin(\psi/2) \\
-\sin(\phi/2)\cos(\theta/2)\cos(\psi/2) - \cos(\phi/2)\sin(\theta/2)\sin(\psi/2) \\
-\cos(\phi/2)\sin(\theta/2)\cos(\psi/2) + \sin(\phi/2)\cos(\theta/2)\sin(\psi/2) \\
+\cos(\phi/2)\cos(\theta/2)\cos(\psi/2) + \sin(\phi/2)\sin(\theta/2)\sin(\psi/2) \\\\
+\sin(\phi/2)\cos(\theta/2)\cos(\psi/2) - \cos(\phi/2)\sin(\theta/2)\sin(\psi/2) \\\\
+\cos(\phi/2)\sin(\theta/2)\cos(\psi/2) + \sin(\phi/2)\cos(\theta/2)\sin(\psi/2) \\\\
 \cos(\phi/2)\cos(\theta/2)\sin(\psi/2) - \sin(\phi/2)\sin(\theta/2)\cos(\psi/2) 
 \end{bmatrix}
 $$
@@ -178,7 +178,7 @@ q_{w,err} = q_{w,meas} q_{w,sp} + q_{x,meas} q_{x,sp} + q_{y,meas} q_{y,sp} + q_
 $$
 
 $$
-\mathbf{q}_{v,err} = \begin{bmatrix} q_{x,err} \\ q_{y,err} \\ q_{z,err} \end{bmatrix} = q_{w,meas} \mathbf{q}_{v,sp} - q_{w,sp} \mathbf{q}_{v,meas} - \mathbf{q}_{v,meas} \times \mathbf{q}_{v,sp}
+\mathbf{q}_{v,err} = \begin{bmatrix} q_{x,err} \\\\ q_{y,err} \\\\ q_{z,err} \end{bmatrix} = q_{w,meas} \mathbf{q}_{v,sp} - q_{w,sp} \mathbf{q}_{v,meas} - \mathbf{q}_{v,meas} \times \mathbf{q}_{v,sp}
 $$
 
 ---
@@ -187,7 +187,7 @@ $$
 Because $q$ and$-q$ represent identical physical 3D orientations (double covering of $SO(3)$ by $Sp(1)$), the controller must ensure rotation along the shorter arc ($\le 180^\circ$). The scalar component check is:
 
 $$
-q_{err,short} = \begin{cases} -q_{err} & \text{if } q_{w,err} < 0 \\ q_{err} & \text{if } q_{w,err} \ge 0 \end{cases}
+q_{err,short} = \begin{cases} -q_{err} & \text{if } q_{w,err} < 0 \\\\ q_{err} & \text{if } q_{w,err} \ge 0 \end{cases}
 $$
 
 In terms of physical axis-angle representation $(\mathbf{e}, \alpha)$:
@@ -210,7 +210,7 @@ $$
 The fundamental kinematic differential equation connecting quaternion derivative $\dot{q}$ to body-frame angular rate setpoints $[\omega_{x,sp}, \omega_{y,sp}, \omega_{z,sp}]^T$ is:
 
 $$
-\dot{q} = \frac{1}{2} q \otimes \begin{bmatrix} 0 \\ \boldsymbol{\omega} \end{bmatrix} \implies \boldsymbol{\omega}_{sp} = 2 \, \bar{q}_u \otimes \dot{q}_{sp}
+\dot{q} = \frac{1}{2} q \otimes \begin{bmatrix} 0 \\\\ \boldsymbol{\omega} \end{bmatrix} \implies \boldsymbol{\omega}_{sp} = 2 \, \bar{q}_u \otimes \dot{q}_{sp}
 $$
 
 where $q_u = [1, 0, 0, 0]^T$ is the identity unit quaternion.
@@ -218,7 +218,7 @@ where $q_u = [1, 0, 0, 0]^T$ is the identity unit quaternion.
 Expanding and simplifying yields the master $Q_P$ outer-loop control law:
 
 $$
-\begin{bmatrix} \omega_{x,sp} \\ \omega_{y,sp} \\ \omega_{z,sp} \end{bmatrix} = 2 \cdot K_p \cdot \text{sgn}(q_{w,err}) \cdot \begin{bmatrix} q_{x,err} \\ q_{y,err} \\ q_{z,err} \end{bmatrix}
+\begin{bmatrix} \omega_{x,sp} \\\\ \omega_{y,sp} \\\\ \omega_{z,sp} \end{bmatrix} = 2 \cdot K_p \cdot \text{sgn}(q_{w,err}) \cdot \begin{bmatrix} q_{x,err} \\\\ q_{y,err} \\\\ q_{z,err} \end{bmatrix}
 $$
 
 ---
@@ -231,7 +231,7 @@ $$
 $$
 
 $$
-\mathbf{e}_\omega = \begin{bmatrix} e_{\omega,x} \\ e_{\omega,y} \\ e_{\omega,z} \end{bmatrix} = \begin{bmatrix} \omega_{x,sp} - \omega_{x,meas} \\ \omega_{y,sp} - \omega_{y,meas} \\ \omega_{z,sp} - \omega_{z,meas} \end{bmatrix}
+\mathbf{e}_\omega = \begin{bmatrix} e_{\omega,x} \\\\ e_{\omega,y} \\\\ e_{\omega,z} \end{bmatrix} = \begin{bmatrix} \omega_{x,sp} - \omega_{x,meas} \\\\ \omega_{y,sp} - \omega_{y,meas} \\\\ \omega_{z,sp} - \omega_{z,meas} \end{bmatrix}
 $$
 
 The raw 3-axis control output $\mathbf{u}_{raw}$ combines Proportional, Integral, and Derivative terms:
@@ -310,8 +310,8 @@ $$
 
 $$
 R(q)^T = \begin{bmatrix}
-q_w^2 + q_x^2 - q_y^2 - q_z^2 & 2(q_x q_y + q_w q_z) & 2(q_x q_z - q_w q_y) \\
-2(q_x q_y - q_w q_z) & q_w^2 - q_x^2 + q_y^2 - q_z^2 & 2(q_y q_z + q_w q_x) \\
+q_w^2 + q_x^2 - q_y^2 - q_z^2 & 2(q_x q_y + q_w q_z) & 2(q_x q_z - q_w q_y) \\\\
+2(q_x q_y - q_w q_z) & q_w^2 - q_x^2 + q_y^2 - q_z^2 & 2(q_y q_z + q_w q_x) \\\\
 2(q_x q_z + q_w q_y) & 2(q_y q_z - q_w q_x) & q_w^2 - q_x^2 - q_y^2 + q_z^2
 \end{bmatrix}
 $$
@@ -335,8 +335,8 @@ The wind turbulence induces external aerodynamic disturbance moments $\boldsymbo
 
 $$
 \boldsymbol{\tau}_{dist} = \frac{1}{2} \rho V_{rel}^2 S \begin{bmatrix}
-b \, C_{l,\beta} \beta_{aero} \\
-c \, C_{m,\alpha} (\alpha_{aero} - \alpha_0) \\
+b \, C_{l,\beta} \beta_{aero} \\\\
+c \, C_{m,\alpha} (\alpha_{aero} - \alpha_0) \\\\
 b \, C_{n,\beta} \beta_{aero}
 \end{bmatrix} + \mathbf{r}_{cp} \times \mathbf{F}_{gust}
 $$
@@ -356,11 +356,11 @@ The temporal evolution of the unit attitude quaternion $q(t)$ under body angular
 
 $$
 \dot{q} = \frac{1}{2} q \otimes \boldsymbol{\omega}_b = \frac{1}{2} \begin{bmatrix} 
-0 & -p & -q & -r \\
-p & 0 & r & -q \\
-q & -r & 0 & p \\
+0 & -p & -q & -r \\\\
+p & 0 & r & -q \\\\
+q & -r & 0 & p \\\\
 r & q & -p & 0 
-\end{bmatrix} \begin{bmatrix} q_w \\ q_x \\ q_y \\ q_z \end{bmatrix}
+\end{bmatrix} \begin{bmatrix} q_w \\\\ q_x \\\\ q_y \\\\ q_z \end{bmatrix}
 $$
 
 Because this differential equation operates directly in unit quaternion space $Sp(1)$, **no trigonometric functions ($\tan\theta, \sec\theta$) or pitch angle divisions exist**. Consequently, when severe crosswind turbulence induces extreme transient pitch/roll excursions, the quaternion kinematic propagation remains 100% numerically stable and non-singular!
@@ -376,19 +376,19 @@ An aircraft is flying in a **$90^\circ$ Knife-Edge Bank Turn** (measured attitud
 1. **Measured Aircraft Attitude ($q_{meas}$):** Banked at $90^\circ$ roll ($\phi = 90^\circ, \theta = 0^\circ, \psi = 0^\circ$):
 
 $$
-q_{meas} = \begin{bmatrix} \cos(45^{\circ}) \\ \sin(45^{\circ}) \\ 0.0000 \\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.7071 \\ 0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix}
+q_{meas} = \begin{bmatrix} \cos(45^{\circ}) \\\\ \sin(45^{\circ}) \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.7071 \\\\ 0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix}
 $$
 
 2. **Target Setpoint Attitude ($q_{sp}$):** Pitching up by $30^{\circ}$ ($\phi = 0^{\circ}, \theta = 30^{\circ}, \psi = 0^{\circ}$):
 
 $$
-q_{sp} = \begin{bmatrix} \cos(15^{\circ}) \\ 0.0000 \\ \sin(15^{\circ}) \\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.9659 \\ 0.0000 \\ 0.2588 \\ 0.0000 \end{bmatrix}
+q_{sp} = \begin{bmatrix} \cos(15^{\circ}) \\\\ 0.0000 \\\\ \sin(15^{\circ}) \\\\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.9659 \\\\ 0.0000 \\\\ 0.2588 \\\\ 0.0000 \end{bmatrix}
 $$
 
 3. **Current Measured Gyro Speeds:** Currently stationary:
 
 $$
-\boldsymbol{\omega}_{meas} = \begin{bmatrix} 0.0 \\ 0.0 \\ 0.0 \end{bmatrix} \text{ rad/s}
+\boldsymbol{\omega}_{meas} = \begin{bmatrix} 0.0 \\\\ 0.0 \\\\ 0.0 \end{bmatrix} \text{ rad/s}
 $$
 
 4. **Current Airspeed:** $V = 30\text{ m/s}$(Trim airspeed $V_0 = 30\text{ m/s}$).
@@ -408,7 +408,7 @@ $$
 Flip the imaginary vector signs of $q_{meas}$ to create the conjugate:
 
 $$
-\bar{q}_{meas} = \begin{bmatrix} 0.7071 \\ -0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix}
+\bar{q}_{meas} = \begin{bmatrix} 0.7071 \\\\ -0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix}
 $$
 
 #### STEP 2: Compute Attitude Error Quaternion
@@ -416,16 +416,16 @@ $$
 Execute the Hamilton Product:
 
 $$
-q_{err} = \bar{q}_{meas} \otimes q_{sp} = \begin{bmatrix} 0.7071 \\ -0.7071 \\ 0.0000 \\ 0.0000 \end{bmatrix} \otimes \begin{bmatrix} 0.9659 \\ 0.0000 \\ 0.2588 \\ 0.0000 \end{bmatrix}
+q_{err} = \bar{q}_{meas} \otimes q_{sp} = \begin{bmatrix} 0.7071 \\\\ -0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix} \otimes \begin{bmatrix} 0.9659 \\\\ 0.0000 \\\\ 0.2588 \\\\ 0.0000 \end{bmatrix}
 $$
 
 Expanding the 4 components:
 
 $$
 \begin{aligned}
-q_{w,err} &= (0.7071)(0.9659) - (-0.7071)(0.0) - (0)(0.2588) - (0)(0) = 0.6830 \\
-q_{x,err} &= (0.7071)(0.0) + (-0.7071)(0.9659) + (0)(0) - (0)(0.2588) = -0.6830 \\
-q_{y,err} &= (0.7071)(0.2588) - (-0.7071)(0) + (0)(0.9659) + (0)(0) = 0.1830 \\
+q_{w,err} &= (0.7071)(0.9659) - (-0.7071)(0.0) - (0)(0.2588) - (0)(0) = 0.6830 \\\\
+q_{x,err} &= (0.7071)(0.0) + (-0.7071)(0.9659) + (0)(0) - (0)(0.2588) = -0.6830 \\\\
+q_{y,err} &= (0.7071)(0.2588) - (-0.7071)(0) + (0)(0.9659) + (0)(0) = 0.1830 \\\\
 q_{z,err} &= (0.7071)(0) + (-0.7071)(0.2588) - (0)(0) + (0)(0.9659) = -0.1830
 \end{aligned}
 $$
@@ -433,7 +433,7 @@ $$
 Resulting Error Quaternion:
 
 $$
-q_{err} = \begin{bmatrix} 0.6830 \\ -0.6830 \\ 0.1830 \\ -0.1830 \end{bmatrix}
+q_{err} = \begin{bmatrix} 0.6830 \\\\ -0.6830 \\\\ 0.1830 \\\\ -0.1830 \end{bmatrix}
 $$
 
 #### STEP 3: Shortest-Path Arc Check
@@ -442,7 +442,7 @@ Check the scalar component $q_{w,err}$:
 - Since $q_{w,err} = 0.6830 \ge 0$, no sign inversion is needed!
 
 $$
-q_{err,short} = \begin{bmatrix} 0.6830 \\ -0.6830 \\ 0.1830 \\ -0.1830 \end{bmatrix}
+q_{err,short} = \begin{bmatrix} 0.6830 \\\\ -0.6830 \\\\ 0.1830 \\\\ -0.1830 \end{bmatrix}
 $$
 
 #### STEP 4: Compute Outer Loop Target Spin Speeds
@@ -474,7 +474,7 @@ $$
 Resulting Target Angular Rate Vector:
 
 $$
-\boldsymbol{\omega}_{sp} = \begin{bmatrix} -4.7811 \\ +1.2811 \\ -1.2811 \end{bmatrix} \text{ rad/s} \quad \left( \begin{bmatrix} -273.94^{\circ} \\ +73.40^{\circ} \\ -73.40^{\circ} \end{bmatrix} / \text{s} \right)
+\boldsymbol{\omega}_{sp} = \begin{bmatrix} -4.7811 \\\\ +1.2811 \\\\ -1.2811 \end{bmatrix} \text{ rad/s} \quad \left( \begin{bmatrix} -273.94^{\circ} \\\\ +73.40^{\circ} \\\\ -73.40^{\circ} \end{bmatrix} / \text{s} \right)
 $$
 
 ---

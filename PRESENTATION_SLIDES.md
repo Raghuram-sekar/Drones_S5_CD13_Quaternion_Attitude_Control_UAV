@@ -57,7 +57,7 @@ $$
 - **Body Angular Rate Setpoints:**
 
 $$
-\begin{bmatrix} \omega_{x,sp} \\ \omega_{y,sp} \\ \omega_{z,sp} \end{bmatrix} = 2 \cdot K_p \cdot \begin{bmatrix} q_{x,err,short} \\ q_{y,err,short} \\ q_{z,err,short} \end{bmatrix}
+\begin{bmatrix} \omega_{x,sp} \\\\ \omega_{y,sp} \\\\ \omega_{z,sp} \end{bmatrix} = 2 \cdot K_p \cdot \begin{bmatrix} q_{x,err,short} \\\\ q_{y,err,short} \\\\ q_{z,err,short} \end{bmatrix}
 $$
 
 ---
