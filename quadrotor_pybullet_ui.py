@@ -297,22 +297,32 @@ def run_interactive_simulation():
     is_running = True
     current_mode = 0
 
-    # 3. Setup Lightweight Synchronized Telemetry Dashboard
+    # 3. Setup Lightweight Synchronized Telemetry Dashboard (4 Panels: Roll, Pitch, Yaw, Airspeed/Error)
     plt.ion()
-    fig, (ax_roll, ax_pitch, ax_yaw) = plt.subplots(3, 1, figsize=(5.5, 7.0))
-    fig.canvas.manager.set_window_title('Live Flight Telemetry (Golabek et al. Q_P Controller)')
+    fig, (ax_roll, ax_pitch, ax_yaw, ax_spd) = plt.subplots(4, 1, figsize=(6.2, 8.5))
+    fig.canvas.manager.set_window_title('Live Flight Telemetry & Dynamics (Golabek et al. Q_P Controller)')
 
-    for ax, title, col in zip([ax_roll, ax_pitch, ax_yaw], ['Roll (rad)', 'Pitch (rad)', 'Yaw (rad)'], ['#FF5252', '#69F0AE', '#448AFF']):
-        ax.set_title(title, fontweight='bold', fontsize=9)
+    ax_roll.set_title('Roll φ [deg] (Bank Angle)', fontweight='bold', fontsize=9)
+    ax_pitch.set_title('Pitch θ [deg] (Elevation)', fontweight='bold', fontsize=9)
+    ax_yaw.set_title('Yaw ψ [deg] (Heading / Turn Angle)', fontweight='bold', fontsize=9)
+    ax_spd.set_title('Speed [m/s] (Cyan) & Pos Error [m] (Gold)', fontweight='bold', fontsize=9)
+
+    for ax in [ax_roll, ax_pitch, ax_yaw, ax_spd]:
         ax.set_xlim(0, 15)
         ax.grid(True, linestyle='--', alpha=0.5)
-    ax_roll.set_ylim(-1.0, 1.0)
-    ax_pitch.set_ylim(-1.0, 1.0)
-    ax_yaw.set_ylim(-3.5, 3.5)
 
-    line_roll, = ax_roll.plot([], [], color='#FF5252', lw=1.8)
-    line_pitch, = ax_pitch.plot([], [], color='#69F0AE', lw=1.8)
-    line_yaw, = ax_yaw.plot([], [], color='#448AFF', lw=1.8)
+    ax_roll.set_ylim(-35, 35)
+    ax_pitch.set_ylim(-35, 35)
+    ax_yaw.set_ylim(-190, 190)
+    ax_spd.set_ylim(0, 4.0)
+
+    line_roll, = ax_roll.plot([], [], color='#FF5252', lw=1.8, label='Roll φ')
+    line_pitch, = ax_pitch.plot([], [], color='#69F0AE', lw=1.8, label='Pitch θ')
+    line_yaw, = ax_yaw.plot([], [], color='#448AFF', lw=1.8, label='Yaw ψ')
+    line_spd, = ax_spd.plot([], [], color='#00E5FF', lw=1.8, label='Speed (m/s)')
+    line_err, = ax_spd.plot([], [], color='#FFD700', lw=1.6, linestyle='--', label='Pos Err (m)')
+
+    ax_spd.legend(loc='upper right', fontsize=8)
 
     fig.tight_layout()
     fig.canvas.draw()
@@ -377,7 +387,7 @@ def run_interactive_simulation():
 
     draw_path(0, 1.5)
 
-    time_data, roll_data, pitch_data, yaw_data = [], [], [], []
+    time_data, roll_data, pitch_data, yaw_data, speed_data, err_data = [], [], [], [], [], []
     prev_actual_pos = obs[0][0:3]
     sim_time = 0.0
     step_i = 0
@@ -393,17 +403,36 @@ def run_interactive_simulation():
     print(">>   [5]     : High-Speed Slalom Zig-Zag")
     print(">> Controls also selectable via slider [3] on the top-right panel.")
 
-    status_text_id = -1
+    hud_title_id = -1
+    hud_telemetry_id = -1
 
-    def update_hud_text(running, mode_idx, spd_val, alt_val):
-        nonlocal status_text_id
+    def update_hud_text(running, mode_idx, spd_mult, alt_val, pos=None, vel=None, rpy=None, quat=None, turn_rate=0.0, pos_err_norm=0.0):
+        nonlocal hud_title_id, hud_telemetry_id
         m_name = trajectory_names[mode_idx] if mode_idx < len(trajectory_names) else "Custom"
-        msg = f"STATUS: {'[FLYING]' if running else '[PAUSED]'} | Path: {m_name} | Spd: {spd_val:.1f}x | [SPACE]=Pause, [R]=Reset, Keys [1-5]=Change Path"
-        col = [0.0, 1.0, 0.4] if running else [1.0, 0.6, 0.0]
-        if status_text_id == -1:
-            status_text_id = p.addUserDebugText(msg, [-2.6, 0.0, alt_val + 0.9], col, 1.3, physicsClientId=client)
+        
+        # Line 1: Main Control Banner
+        title_msg = f"STATUS: {'[FLYING]' if running else '[PAUSED]'} | Mode: {m_name} | Sim Spd: {spd_mult:.1f}x | [SPACE]=Pause, [R]=Reset, [1-5]=Path"
+        title_col = [0.0, 1.0, 0.4] if running else [1.0, 0.6, 0.0]
+
+        if hud_title_id == -1:
+            hud_title_id = p.addUserDebugText(title_msg, [-2.6, 0.0, alt_val + 1.1], title_col, 1.25, physicsClientId=client)
         else:
-            status_text_id = p.addUserDebugText(msg, [-2.6, 0.0, alt_val + 0.9], col, 1.3, replaceItemUniqueId=status_text_id, physicsClientId=client)
+            hud_title_id = p.addUserDebugText(title_msg, [-2.6, 0.0, alt_val + 1.1], title_col, 1.25, replaceItemUniqueId=hud_title_id, physicsClientId=client)
+
+        # Line 2: Real-time Flight Dynamics Info Box (Speed, Bank Angle, Heading, Turn Rate, Error, Quat)
+        if pos is not None and vel is not None and rpy is not None:
+            lin_speed = np.linalg.norm(vel)
+            telem_msg = (
+                f"Airspeed: {lin_speed:4.2f} m/s ({lin_speed*3.6:4.1f} km/h) | Turn Rate (Yaw Rate): {turn_rate:+6.1f} deg/s\n"
+                f"Bank (Roll φ): {rpy[0]:+5.1f} deg | Pitch θ: {rpy[1]:+5.1f} deg | Heading (Yaw ψ): {rpy[2]:+6.1f} deg\n"
+                f"Altitude Z: {pos[2]:4.2f} m | Track Err: {pos_err_norm:5.3f} m | Quat qw: {quat[0]:+.3f}, qx: {quat[1]:+.3f}, qy: {quat[2]:+.3f}, qz: {quat[3]:+.3f}"
+            )
+            telem_col = [0.2, 0.85, 1.0]
+
+            if hud_telemetry_id == -1:
+                hud_telemetry_id = p.addUserDebugText(telem_msg, [-2.6, 0.0, alt_val + 0.65], telem_col, 1.05, physicsClientId=client)
+            else:
+                hud_telemetry_id = p.addUserDebugText(telem_msg, [-2.6, 0.0, alt_val + 0.65], telem_col, 1.05, replaceItemUniqueId=hud_telemetry_id, physicsClientId=client)
 
     update_hud_text(is_running, current_mode, 1.0, 1.5)
 
@@ -498,17 +527,46 @@ def run_interactive_simulation():
             if is_running:
                 current_state = obs[0]
                 current_pos = current_state[0:3]
-                current_rpy = current_state[7:10]
+                current_quat = current_state[3:7]  # [qx, qy, qz, qw]
+                current_rpy_rad = current_state[7:10]
+                current_rpy_deg = np.degrees(current_rpy_rad)
+                current_vel = current_state[10:13]
+                current_ang_vel = current_state[13:16]  # [p, q, r] in rad/s
+
+                speed_mag = float(np.linalg.norm(current_vel))
+                turn_rate_deg = float(np.degrees(current_ang_vel[2]))
 
                 target_pos, target_vel, target_acc, target_yaw = calculate_trajectory(
                     current_mode, sim_time, speed=spd, alt=alt, scale=2.0
                 )
 
+                # Compute exact paper control law
+                action, pos_error, quat_error = ctrl.computeControlFromState(
+                    control_timestep=env.CTRL_TIMESTEP,
+                    state=current_state,
+                    target_pos=target_pos,
+                    target_vel=target_vel,
+                    target_acc=target_acc,
+                    target_yaw=target_yaw
+                )
+
+                pos_err_norm = float(np.linalg.norm(pos_error))
+
                 # Record Telemetry
                 time_data.append(sim_time)
-                roll_data.append(current_rpy[0])
-                pitch_data.append(current_rpy[1])
-                yaw_data.append(current_rpy[2])
+                roll_data.append(current_rpy_deg[0])
+                pitch_data.append(current_rpy_deg[1])
+                yaw_data.append(current_rpy_deg[2])
+                speed_data.append(speed_mag)
+                err_data.append(pos_err_norm)
+
+                if len(time_data) > 300:
+                    time_data.pop(0)
+                    roll_data.pop(0)
+                    pitch_data.pop(0)
+                    yaw_data.pop(0)
+                    speed_data.pop(0)
+                    err_data.pop(0)
 
                 # Draw Blue Trailing Path
                 if step_i % 6 == 0:
@@ -522,27 +580,30 @@ def run_interactive_simulation():
                             pass
                     prev_actual_pos = current_pos
 
-                # Lightweight 10 Hz Telemetry Plot Refresh
+                # Lightweight 10 Hz Telemetry Plot Refresh & 3D HUD Update
                 if step_i % 24 == 0:
                     try:
                         line_roll.set_data(time_data, roll_data)
                         line_pitch.set_data(time_data, pitch_data)
                         line_yaw.set_data(time_data, yaw_data)
-                        for ax in [ax_roll, ax_pitch, ax_yaw]:
+                        line_spd.set_data(time_data, speed_data)
+                        line_err.set_data(time_data, err_data)
+
+                        for ax in [ax_roll, ax_pitch, ax_yaw, ax_spd]:
                             ax.set_xlim(max(0, sim_time - 12), sim_time + 1)
                         fig.canvas.flush_events()
+
+                        # Update Live 3D HUD with flight dynamics
+                        update_hud_text(
+                            is_running, current_mode, spd, alt,
+                            pos=current_pos, vel=current_vel,
+                            rpy=current_rpy_deg,
+                            quat=[current_quat[3], current_quat[0], current_quat[1], current_quat[2]],
+                            turn_rate=turn_rate_deg,
+                            pos_err_norm=pos_err_norm
+                        )
                     except Exception:
                         pass
-
-                # Compute exact paper control law
-                action, pos_error, quat_error = ctrl.computeControlFromState(
-                    control_timestep=env.CTRL_TIMESTEP,
-                    state=current_state,
-                    target_pos=target_pos,
-                    target_vel=target_vel,
-                    target_acc=target_acc,
-                    target_yaw=target_yaw
-                )
 
                 # Step through exact Gym environment physics
                 obs, reward, terminated, truncated, info = env.step(np.array([action]))
