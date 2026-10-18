@@ -297,32 +297,47 @@ def run_interactive_simulation():
     is_running = True
     current_mode = 0
 
-    # 3. Setup Lightweight Synchronized Telemetry Dashboard (4 Panels: Roll, Pitch, Yaw, Airspeed/Error)
+    # 3. Setup Lightweight Synchronized Telemetry Dashboard (3 Plots on Left + Live Data Readout Box on Right)
     plt.ion()
-    fig, (ax_roll, ax_pitch, ax_yaw, ax_spd) = plt.subplots(4, 1, figsize=(6.2, 8.5))
-    fig.canvas.manager.set_window_title('Live Flight Telemetry & Dynamics (Golabek et al. Q_P Controller)')
+    fig = plt.figure(figsize=(9.2, 6.8))
+    fig.canvas.manager.set_window_title('Live Flight Telemetry & Attitude (Golabek et al. Q_P Controller)')
+
+    # Left Column: 3 Attitude Plots (Roll, Pitch, Yaw)
+    ax_roll = plt.subplot2grid((3, 3), (0, 0), colspan=2)
+    ax_pitch = plt.subplot2grid((3, 3), (1, 0), colspan=2)
+    ax_yaw = plt.subplot2grid((3, 3), (2, 0), colspan=2)
+
+    # Right Column: Data Readout Panel (Text Box)
+    ax_info = plt.subplot2grid((3, 3), (0, 2), rowspan=3)
+    ax_info.axis('off')
 
     ax_roll.set_title('Roll φ [deg] (Bank Angle)', fontweight='bold', fontsize=9)
     ax_pitch.set_title('Pitch θ [deg] (Elevation)', fontweight='bold', fontsize=9)
     ax_yaw.set_title('Yaw ψ [deg] (Heading / Turn Angle)', fontweight='bold', fontsize=9)
-    ax_spd.set_title('Speed [m/s] (Cyan) & Pos Error [m] (Gold)', fontweight='bold', fontsize=9)
+    ax_yaw.set_xlabel('Time [s]', fontweight='bold', fontsize=9)
 
-    for ax in [ax_roll, ax_pitch, ax_yaw, ax_spd]:
+    for ax in [ax_roll, ax_pitch, ax_yaw]:
         ax.set_xlim(0, 15)
         ax.grid(True, linestyle='--', alpha=0.5)
 
     ax_roll.set_ylim(-35, 35)
     ax_pitch.set_ylim(-35, 35)
     ax_yaw.set_ylim(-190, 190)
-    ax_spd.set_ylim(0, 4.0)
 
-    line_roll, = ax_roll.plot([], [], color='#FF5252', lw=1.8, label='Roll φ')
-    line_pitch, = ax_pitch.plot([], [], color='#69F0AE', lw=1.8, label='Pitch θ')
-    line_yaw, = ax_yaw.plot([], [], color='#448AFF', lw=1.8, label='Yaw ψ')
-    line_spd, = ax_spd.plot([], [], color='#00E5FF', lw=1.8, label='Speed (m/s)')
-    line_err, = ax_spd.plot([], [], color='#FFD700', lw=1.6, linestyle='--', label='Pos Err (m)')
+    line_roll, = ax_roll.plot([], [], color='#FF5252', lw=1.8)
+    line_pitch, = ax_pitch.plot([], [], color='#69F0AE', lw=1.8)
+    line_yaw, = ax_yaw.plot([], [], color='#448AFF', lw=1.8)
 
-    ax_spd.legend(loc='upper right', fontsize=8)
+    # Live Numerical Readout Text on the Right Panel
+    info_text = ax_info.text(
+        0.05, 0.95,
+        "FLIGHT TELEMETRY\nInitializing...",
+        transform=ax_info.transAxes,
+        fontsize=9,
+        verticalalignment='top',
+        fontfamily='monospace',
+        bbox=dict(boxstyle='round,pad=0.8', facecolor='#F5F5F7', edgecolor='#B0BEC5', alpha=0.95)
+    )
 
     fig.tight_layout()
     fig.canvas.draw()
@@ -387,7 +402,7 @@ def run_interactive_simulation():
 
     draw_path(0, 1.5)
 
-    time_data, roll_data, pitch_data, yaw_data, speed_data, err_data = [], [], [], [], [], []
+    time_data, roll_data, pitch_data, yaw_data = [], [], [], []
     prev_actual_pos = obs[0][0:3]
     sim_time = 0.0
     step_i = 0
@@ -396,45 +411,8 @@ def run_interactive_simulation():
     print(">> KEYBOARD SHORTCUTS:")
     print(">>   [SPACE] : Play / Pause")
     print(">>   [R]     : Reset Simulation to Origin")
-    print(">>   [1]     : Figure-8 (Lemniscate)")
-    print(">>   [2]     : Circular Orbit")
-    print(">>   [3]     : 3D Helix Corkscrew Climb")
-    print(">>   [4]     : Cloverleaf 4-Leaf Maneuver")
-    print(">>   [5]     : High-Speed Slalom Zig-Zag")
+    print(">>   [1-5]   : Switch Trajectory (1:Fig8, 2:Circ, 3:Helix, 4:Clover, 5:Slalom)")
     print(">> Controls also selectable via slider [3] on the top-right panel.")
-
-    hud_title_id = -1
-    hud_telemetry_id = -1
-
-    def update_hud_text(running, mode_idx, spd_mult, alt_val, pos=None, vel=None, rpy=None, quat=None, turn_rate=0.0, pos_err_norm=0.0):
-        nonlocal hud_title_id, hud_telemetry_id
-        m_name = trajectory_names[mode_idx] if mode_idx < len(trajectory_names) else "Custom"
-        
-        # Line 1: Main Control Banner
-        title_msg = f"STATUS: {'[FLYING]' if running else '[PAUSED]'} | Mode: {m_name} | Sim Spd: {spd_mult:.1f}x | [SPACE]=Pause, [R]=Reset, [1-5]=Path"
-        title_col = [0.0, 1.0, 0.4] if running else [1.0, 0.6, 0.0]
-
-        if hud_title_id == -1:
-            hud_title_id = p.addUserDebugText(title_msg, [-2.6, 0.0, alt_val + 1.1], title_col, 1.25, physicsClientId=client)
-        else:
-            hud_title_id = p.addUserDebugText(title_msg, [-2.6, 0.0, alt_val + 1.1], title_col, 1.25, replaceItemUniqueId=hud_title_id, physicsClientId=client)
-
-        # Line 2: Real-time Flight Dynamics Info Box (Speed, Bank Angle, Heading, Turn Rate, Error, Quat)
-        if pos is not None and vel is not None and rpy is not None:
-            lin_speed = np.linalg.norm(vel)
-            telem_msg = (
-                f"Airspeed: {lin_speed:4.2f} m/s ({lin_speed*3.6:4.1f} km/h) | Turn Rate (Yaw Rate): {turn_rate:+6.1f} deg/s\n"
-                f"Bank (Roll φ): {rpy[0]:+5.1f} deg | Pitch θ: {rpy[1]:+5.1f} deg | Heading (Yaw ψ): {rpy[2]:+6.1f} deg\n"
-                f"Altitude Z: {pos[2]:4.2f} m | Track Err: {pos_err_norm:5.3f} m | Quat qw: {quat[0]:+.3f}, qx: {quat[1]:+.3f}, qy: {quat[2]:+.3f}, qz: {quat[3]:+.3f}"
-            )
-            telem_col = [0.2, 0.85, 1.0]
-
-            if hud_telemetry_id == -1:
-                hud_telemetry_id = p.addUserDebugText(telem_msg, [-2.6, 0.0, alt_val + 0.65], telem_col, 1.05, physicsClientId=client)
-            else:
-                hud_telemetry_id = p.addUserDebugText(telem_msg, [-2.6, 0.0, alt_val + 0.65], telem_col, 1.05, replaceItemUniqueId=hud_telemetry_id, physicsClientId=client)
-
-    update_hud_text(is_running, current_mode, 1.0, 1.5)
 
     try:
         while True:
@@ -450,7 +428,6 @@ def run_interactive_simulation():
             # Space key (ASCII 32)
             if 32 in keys and (keys[32] & p.KEY_WAS_TRIGGERED):
                 is_running = not is_running
-                update_hud_text(is_running, current_mode, spd, alt)
                 print(f"[STATUS] Simulation {'RESUMED' if is_running else 'PAUSED'} (via SPACE key)")
 
             # 'R' or 'r' key (ASCII 114 / 82)
@@ -471,7 +448,6 @@ def run_interactive_simulation():
                         pass
                 trail_lines.clear()
                 draw_path(current_mode, alt)
-                update_hud_text(is_running, current_mode, spd, alt)
                 print("[STATUS] Simulation RESET to origin (via R key)")
 
             # '1', '2', '3', '4', '5' keys to switch trajectory modes directly
@@ -482,7 +458,6 @@ def run_interactive_simulation():
                     sim_time = 0.0
                     ctrl.reset_all_states()
                     draw_path(current_mode, alt)
-                    update_hud_text(is_running, current_mode, spd, alt)
                     print(f"[STATUS] Switched to trajectory: {trajectory_names[current_mode]}")
 
             # 2. Check GUI Button Clicks
@@ -490,7 +465,6 @@ def run_interactive_simulation():
             if play_clicks != prev_play_clicks:
                 prev_play_clicks = play_clicks
                 is_running = not is_running
-                update_hud_text(is_running, current_mode, spd, alt)
                 print(f"[STATUS] Simulation {'RESUMED' if is_running else 'PAUSED'} (via GUI Button)")
 
             reset_clicks = p.readUserDebugParameter(param_reset, physicsClientId=client)
@@ -511,7 +485,6 @@ def run_interactive_simulation():
                         pass
                 trail_lines.clear()
                 draw_path(current_mode, alt)
-                update_hud_text(is_running, current_mode, spd, alt)
                 print("[STATUS] Simulation RESET to initial condition.")
 
             # Read sliders
@@ -522,7 +495,6 @@ def run_interactive_simulation():
             if m != current_mode:
                 current_mode = m
                 draw_path(current_mode, alt)
-                update_hud_text(is_running, current_mode, spd, alt)
 
             if is_running:
                 current_state = obs[0]
@@ -557,16 +529,12 @@ def run_interactive_simulation():
                 roll_data.append(current_rpy_deg[0])
                 pitch_data.append(current_rpy_deg[1])
                 yaw_data.append(current_rpy_deg[2])
-                speed_data.append(speed_mag)
-                err_data.append(pos_err_norm)
 
                 if len(time_data) > 300:
                     time_data.pop(0)
                     roll_data.pop(0)
                     pitch_data.pop(0)
                     yaw_data.pop(0)
-                    speed_data.pop(0)
-                    err_data.pop(0)
 
                 # Draw Blue Trailing Path
                 if step_i % 6 == 0:
@@ -580,28 +548,57 @@ def run_interactive_simulation():
                             pass
                     prev_actual_pos = current_pos
 
-                # Lightweight 10 Hz Telemetry Plot Refresh & 3D HUD Update
+                # Update 10 Hz Telemetry Plots & Live Text Readout Panel
                 if step_i % 24 == 0:
                     try:
                         line_roll.set_data(time_data, roll_data)
                         line_pitch.set_data(time_data, pitch_data)
                         line_yaw.set_data(time_data, yaw_data)
-                        line_spd.set_data(time_data, speed_data)
-                        line_err.set_data(time_data, err_data)
 
-                        for ax in [ax_roll, ax_pitch, ax_yaw, ax_spd]:
+                        for ax in [ax_roll, ax_pitch, ax_yaw]:
                             ax.set_xlim(max(0, sim_time - 12), sim_time + 1)
-                        fig.canvas.flush_events()
 
-                        # Update Live 3D HUD with flight dynamics
-                        update_hud_text(
-                            is_running, current_mode, spd, alt,
-                            pos=current_pos, vel=current_vel,
-                            rpy=current_rpy_deg,
-                            quat=[current_quat[3], current_quat[0], current_quat[1], current_quat[2]],
-                            turn_rate=turn_rate_deg,
-                            pos_err_norm=pos_err_norm
+                        # Update Right-Side Telemetry Text Box
+                        m_label = trajectory_names[current_mode]
+                        stat_label = "ACTIVE [FLYING]" if is_running else "PAUSED [HOLD]"
+                        panel_text = (
+                            f"┌──────────────────────────────┐\n"
+                            f"│    FLIGHT STATUS & TELEMETRY │\n"
+                            f"├──────────────────────────────┤\n"
+                            f"  State    : {stat_label}\n"
+                            f"  Time     : {sim_time:5.2f} s\n"
+                            f"  Sim Spd  : {spd:4.1f} x\n"
+                            f"  Path     : {m_label}\n"
+                            f"├──────────────────────────────┤\n"
+                            f"  SPEED & DYNAMICS:\n"
+                            f"  Airspeed : {speed_mag:4.2f} m/s\n"
+                            f"           : {speed_mag*3.6:4.1f} km/h\n"
+                            f"  Turn Rate: {turn_rate_deg:+5.1f} deg/s\n"
+                            f"├──────────────────────────────┤\n"
+                            f"  ATTITUDE ANGLES:\n"
+                            f"  Roll  φ  : {current_rpy_deg[0]:+5.1f}° (Bank)\n"
+                            f"  Pitch θ  : {current_rpy_deg[1]:+5.1f}°\n"
+                            f"  Yaw   ψ  : {current_rpy_deg[2]:+5.1f}° (Turn)\n"
+                            f"├──────────────────────────────┤\n"
+                            f"  POSITION & ACCURACY:\n"
+                            f"  Pos X    : {current_pos[0]:+5.2f} m\n"
+                            f"  Pos Y    : {current_pos[1]:+5.2f} m\n"
+                            f"  Altitude : {current_pos[2]:5.2f} m\n"
+                            f"  Pos Error: {pos_err_norm:5.3f} m\n"
+                            f"├──────────────────────────────┤\n"
+                            f"  UNIT QUATERNION (Sp(1)):\n"
+                            f"  qw : {current_quat[3]:+6.3f}\n"
+                            f"  qx : {current_quat[0]:+6.3f}\n"
+                            f"  qy : {current_quat[1]:+6.3f}\n"
+                            f"  qz : {current_quat[2]:+6.3f}\n"
+                            f"  Singularity : ZERO (No Lock)\n"
+                            f"└──────────────────────────────┘\n"
+                            f" Controls: [SPACE]=Pause | [R]=Reset\n"
+                            f" Trajectories: Keys [1] to [5]"
                         )
+                        info_text.set_text(panel_text)
+
+                        fig.canvas.flush_events()
                     except Exception:
                         pass
 
