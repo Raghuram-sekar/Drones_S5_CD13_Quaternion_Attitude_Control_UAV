@@ -365,6 +365,14 @@ def run_interactive_simulation():
     )
     lbl_telem.pack(fill='both', expand=True, padx=8, pady=(0, 8))
 
+    trajectory_names = [
+        "1: Figure-8 (Lemniscate)",
+        "2: Circular Orbit",
+        "3: 3D Helix Vertical Climb",
+        "4: Cloverleaf 4-Leaf Spatial",
+        "5: High-Speed Slalom Zig-Zag"
+    ]
+
     def format_telemetry(state_str, mode_idx, t_sim, spd_mult, spd_m, turn_deg, rpy_deg, pos, err_norm):
         m_name = trajectory_names[mode_idx].split(':')[1].strip()[:18]
         return (
@@ -392,14 +400,6 @@ def run_interactive_simulation():
     # Path lines tracking
     target_lines = []
     trail_lines = []
-
-    trajectory_names = [
-        "1: Figure-8 (Lemniscate)",
-        "2: Circular Orbit",
-        "3: 3D Helix Vertical Climb",
-        "4: Cloverleaf 4-Leaf Spatial",
-        "5: High-Speed Slalom Zig-Zag"
-    ]
 
     def draw_path(mode, alt):
         nonlocal target_lines
