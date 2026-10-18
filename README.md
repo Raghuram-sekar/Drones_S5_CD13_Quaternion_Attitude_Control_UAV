@@ -210,7 +210,7 @@ $$
 The fundamental kinematic differential equation connecting quaternion derivative $\dot{q}$ to body-frame angular rate setpoints $[\omega_{x,sp}, \omega_{y,sp}, \omega_{z,sp}]^T$ is:
 
 $$
-\dot{q} = \frac{1}{2} q \otimes \begin{bmatrix} 0 \\\\ \boldsymbol{\omega} \end{bmatrix} \implies \boldsymbol{\omega}_{sp} = 2 \, \bar{q}_u \otimes \dot{q}_{sp}
+\dot{q} = \frac{1}{2} q \otimes \begin{bmatrix} 0 \\\\ \omega_x \\\\ \omega_y \\\\ \omega_z \end{bmatrix} \implies \boldsymbol{\omega}_{sp} = 2 \, \bar{q}_u \otimes \dot{q}_{sp}
 $$
 
 where $q_u = [1, 0, 0, 0]^T$ is the identity unit quaternion.
@@ -416,7 +416,7 @@ $$
 Execute the Hamilton Product:
 
 $$
-q_{err} = \bar{q}_{meas} \otimes q_{sp} = \begin{bmatrix} 0.7071 \\\\ -0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix} \otimes \begin{bmatrix} 0.9659 \\\\ 0.0000 \\\\ 0.2588 \\\\ 0.0000 \end{bmatrix}
+q_{err} = \bar{q}_{meas} \otimes q_{sp} = [0.7071, -0.7071, 0.0000, 0.0000]^T \otimes [0.9659, 0.0000, 0.2588, 0.0000]^T
 $$
 
 Expanding the 4 components:
@@ -474,7 +474,7 @@ $$
 Resulting Target Angular Rate Vector:
 
 $$
-\boldsymbol{\omega}_{sp} = \begin{bmatrix} -4.7811 \\\\ +1.2811 \\\\ -1.2811 \end{bmatrix} \text{ rad/s} \quad \left( \begin{bmatrix} -273.94^{\circ} \\\\ +73.40^{\circ} \\\\ -73.40^{\circ} \end{bmatrix} / \text{s} \right)
+\boldsymbol{\omega}_{sp} = \begin{bmatrix} -4.7811 \\\\ +1.2811 \\\\ -1.2811 \end{bmatrix} \text{ rad/s} \quad \left( \approx [-273.94^{\circ}, +73.40^{\circ}, -73.40^{\circ}]^T / \text{s} \right)
 $$
 
 ---
