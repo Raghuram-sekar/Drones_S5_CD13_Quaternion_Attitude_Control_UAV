@@ -567,8 +567,7 @@ The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft si
 #### Figure 4: 90° Knife-Edge Turn Performance (Critical Benchmark)
 ![90 Degree Bank Turn Simulation](figures/fig_90deg_turn.png)
 
-#### Figure 5: Yaw Tracking Error Comparison Across Bank Angles
-![Yaw Tracking Error Comparison](figures/fig_error_comparison.png)
+
 
 ---
 
