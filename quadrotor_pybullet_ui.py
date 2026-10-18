@@ -332,10 +332,19 @@ def main():
     fig.canvas.draw()
     fig.canvas.flush_events()
 
-    # Pre-draw Target Trajectory in PyBullet
+    # Target path item IDs tracking
+    target_line_ids = []
+    trail_line_ids = []
+
     def redraw_target_path(mode, alt):
-        p.removeAllUserDebugItems()
-        # Redraw parameters need re-registering if debug items removed, but user lines don't affect params
+        nonlocal target_line_ids
+        for line_id in target_line_ids:
+            try:
+                p.removeUserDebugItem(line_id)
+            except Exception:
+                pass
+        target_line_ids.clear()
+
         theta_samples = np.linspace(0, 2*math.pi, 200)
         xs, ys, zs = [], [], []
         for th in theta_samples:
@@ -353,7 +362,8 @@ def main():
                 zs.append(alt)
 
         for j in range(len(xs) - 1):
-            p.addUserDebugLine([xs[j], ys[j], zs[j]], [xs[j+1], ys[j+1], zs[j+1]], [1, 0, 0], 2.5, 0)
+            lid = p.addUserDebugLine([xs[j], ys[j], zs[j]], [xs[j+1], ys[j+1], zs[j+1]], [1, 0, 0], 2.5, 0)
+            target_line_ids.append(lid)
 
     redraw_target_path(0, 1.5)
 
@@ -367,7 +377,14 @@ def main():
 
     # 4. Main Simulation Loop
     try:
-        while p.isConnected():
+        while True:
+            # Safely check if PyBullet window is still connected
+            try:
+                if not p.isConnected():
+                    break
+            except Exception:
+                break
+
             # Check Play/Pause Click
             play_clicks = p.readUserDebugParameter(param_play)
             if play_clicks != prev_play_clicks:
@@ -388,7 +405,12 @@ def main():
                 roll_hist.clear()
                 pitch_hist.clear()
                 yaw_hist.clear()
-                p.removeAllUserDebugItems()
+                for lid in trail_line_ids:
+                    try:
+                        p.removeUserDebugItem(lid)
+                    except Exception:
+                        pass
+                trail_line_ids.clear()
                 mode_val = int(round(p.readUserDebugParameter(param_mode)))
                 alt_val = p.readUserDebugParameter(param_alt)
                 redraw_target_path(mode_val, alt_val)
@@ -440,7 +462,14 @@ def main():
 
                 # Draw Blue Trailing Path
                 if step_count % 8 == 0:
-                    p.addUserDebugLine(prev_drone_pos, cur_pos, [0, 0.8, 1], 2.0, 0)
+                    lid = p.addUserDebugLine(prev_drone_pos, cur_pos, [0, 0.8, 1], 2.0, 0)
+                    trail_line_ids.append(lid)
+                    if len(trail_line_ids) > 250:
+                        old_id = trail_line_ids.pop(0)
+                        try:
+                            p.removeUserDebugItem(old_id)
+                        except Exception:
+                            pass
                     prev_drone_pos = cur_pos.copy()
 
                 # Record Telemetry for Plotting
@@ -458,13 +487,16 @@ def main():
 
                 # 5. Flush Telemetry Plot (every 24 steps -> 10 Hz graph update)
                 if step_count % 24 == 0:
-                    line_roll.set_data(t_hist, roll_hist)
-                    line_pitch.set_data(t_hist, pitch_hist)
-                    line_yaw.set_data(t_hist, yaw_hist)
-                    for ax in [ax_r, ax_p, ax_y]:
-                        ax.set_xlim(max(0, sim_time - 12), sim_time + 1)
-                    fig.canvas.draw_idle()
-                    fig.canvas.flush_events()
+                    try:
+                        line_roll.set_data(t_hist, roll_hist)
+                        line_pitch.set_data(t_hist, pitch_hist)
+                        line_yaw.set_data(t_hist, yaw_hist)
+                        for ax in [ax_r, ax_p, ax_y]:
+                            ax.set_xlim(max(0, sim_time - 12), sim_time + 1)
+                        fig.canvas.draw_idle()
+                        fig.canvas.flush_events()
+                    except Exception:
+                        pass
 
                 step_count += 1
                 time.sleep(dt * 0.4)  # Smooth real-time visualization pace
@@ -474,9 +506,18 @@ def main():
 
     except KeyboardInterrupt:
         pass
+    except Exception as e:
+        print(f"Simulation exiting: {e}")
     finally:
-        p.disconnect()
-        plt.close('all')
+        try:
+            if p.isConnected():
+                p.disconnect()
+        except Exception:
+            pass
+        try:
+            plt.close('all')
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
