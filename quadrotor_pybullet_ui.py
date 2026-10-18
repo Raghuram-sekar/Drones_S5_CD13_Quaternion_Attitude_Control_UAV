@@ -2,66 +2,54 @@
 =============================================================================
 Interactive 6-DOF Quadrotor Quaternion Flight Simulator & Control Dashboard
 =============================================================================
-Direct PyBullet Native Physics Implementation matching:
-  - drones_pybullet_final.ipynb
-  - Quaternion_Controller_Data_Driven.ipynb
-  - Michał Gołąbek et al. (MDPI Electronics 2022)
-
-Key Features:
-  1. Real PyBullet 3D Physics Simulation (6-DOF Rigid-Body Dynamics, True Aerodynamics)
-  2. Faithful Golabek et al. (2022) Q_P Attitude Controller (Eq. 11, 17-19, 27)
-  3. Interactive Controls in PyBullet Viewport:
-     - [Play / Pause] Button
-     - [Reset / Re-initialize] Button
-     - [Trajectory Mode] Dropdown: Figure-8, Circular Orbit, Hover Waypoint
-     - [Flight Speed] & [Altitude] Sliders
-  4. Real-time 3D Trajectory Visualization:
-     - Dynamic 3D Red Mathematical Target Path
-     - Cyan Trailing Path of Actual Drone Flight
-  5. Synchronized Live 3-Axis Attitude Telemetry (Roll, Pitch, Yaw)
+EXACT gym-pybullet-drones implementation matching drones_pybullet_final.ipynb
+with full interactive UI controls:
+  - [Play / Pause] Button
+  - [Reset Simulation] Button
+  - [Flight Speed Multiplier] Slider
+  - [Trajectory Selector] Dropdown: Figure-8 (Lemniscate), Circle, Hover Waypoint
+  - [Flight Altitude Z] Slider
+  - Live 3D Trajectory in CtrlAviary PyBullet Window
+  - Synchronized Real-time Telemetry Dashboard (Roll, Pitch, Yaw)
 =============================================================================
 """
 
-import sys
 import math
 import time
 import numpy as np
 import pybullet as p
-import pybullet_data
-from scipy.spatial.transform import Rotation as R
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
+from scipy.spatial.transform import Rotation as R
+
+from gym_pybullet_drones.envs.CtrlAviary import CtrlAviary
+from gym_pybullet_drones.control.DSLPIDControl import DSLPIDControl
 
 
-# =====================================================================
-# 1. FAITHFUL QUATERNION ATTITUDE CONTROLLER (FROM YOUR NOTEBOOK)
-# =====================================================================
-class NotebookQuaternionController:
+class PaperQuaternionController(DSLPIDControl):
     """
-    Direct implementation from drones_pybullet_final.ipynb & Golabek et al. (2022).
+    Implements the cascaded Quaternion Attitude Control System from Golabek et al. (2022):
+      - Outer Guidance System (Position PD + Accel Feedforward -> Setpoint Quaternion q_sp)
+      - External Attitude Loop: Q_P Attitude Controller (Eq. 10, 17-19, 27) + Saturation
+      - Internal Rate Loop: 3-axis Angular Rate PI-D Controllers
     """
-    def __init__(self, mass=0.030, gravity=9.81):
-        self.mass = mass
-        self.gravity_mag = mass * gravity
+    def __init__(self, drone_model):
+        super().__init__(drone_model=drone_model)
         
-        # Outer Position Loop Gains (m/s^2 per m and m/s error)
-        self.P_COEFF_FOR = np.array([8.0, 8.0, 10.0])
-        self.I_COEFF_FOR = np.array([1.5, 1.5, 2.0])
-        self.D_COEFF_FOR = np.array([5.5, 5.5, 6.0])
-
-        # Outer Loop Q_P Attitude Controller Parameters (Eq. 27 & Fig. 1)
+        # 1. Outer Loop Q_P Attitude Controller Parameters (Eq. 27 & Figure 1)
         self.KP_QUAT = 12.0
-        self.MAX_RATE_SP = 10.0  # rad/s
-
-        # Inner Loop 3-Axis Angular Rate PI-D Controller
-        self.KP_RATE = np.array([0.0014, 0.0014, 0.0012])
-        self.KI_RATE = np.array([0.0001, 0.0001, 0.00005])
-        self.KD_RATE = np.array([0.0002, 0.0002, 0.00005])
-
+        self.MAX_RATE_SP = 10.0  # Saturation limit [rad/s]
+        
+        # 2. Inner Loop 3-Axis Angular Rate PI-D Gains (matched to Crazyflie 2.x PWM mixer)
+        self.KP_RATE = np.array([4500.0, 4500.0, 3500.0])
+        self.KI_RATE = np.array([250.0,  250.0,  150.0])
+        self.KD_RATE = np.array([15.0,   15.0,   0.0])
+        
         self.reset_all_states()
 
     def reset_all_states(self):
+        self.reset()
         self.integral_pos_e = np.zeros(3)
         self.rate_integral = np.zeros(3)
         self.prev_omega_meas = np.zeros(3)
@@ -70,7 +58,7 @@ class NotebookQuaternionController:
 
     @staticmethod
     def quat_multiply(q1, q2):
-        """Hamilton product (q1 * q2) in [qw, qx, qy, qz] format (Eq. 8)."""
+        """Hamilton product (q1 * q2) for [qw, qx, qy, qz] scalar-first format (Eq. 8)."""
         w1, x1, y1, z1 = q1
         w2, x2, y2, z2 = q2
         return np.array([
@@ -82,95 +70,94 @@ class NotebookQuaternionController:
 
     @staticmethod
     def quat_conjugate(q):
-        """Unit quaternion conjugate [qw, -qx, -qy, -qz] (Eq. 7)."""
+        """Unit quaternion inverse/conjugate in [qw, qx, qy, qz] format (Eq. 7)."""
         return np.array([q[0], -q[1], -q[2], -q[3]])
 
-    def compute_control(self, dt, cur_pos, cur_vel, cur_quat_xyzw, cur_ang_vel_body,
-                        target_pos, target_vel, target_acc, target_yaw):
-        # -------------------------------------------------------------
+    def computeControlFromState(self, control_timestep, state, target_pos, target_vel, target_acc, target_yaw):
+        cur_pos = state[0:3]
+        cur_quat_xyzw = state[3:7]      # PyBullet format: [qx, qy, qz, qw]
+        cur_vel = state[10:13]
+        cur_ang_vel_world = state[13:16]
+
         # 1. GUIDANCE SYSTEM (GS): Position PID + Force Synthesis
-        # -------------------------------------------------------------
         pos_e = target_pos - cur_pos
         vel_e = target_vel - cur_vel
 
-        self.integral_pos_e += pos_e * dt
+        self.integral_pos_e = self.integral_pos_e + pos_e * control_timestep
         self.integral_pos_e = np.clip(self.integral_pos_e, -2.0, 2.0)
         self.integral_pos_e[2] = np.clip(self.integral_pos_e[2], -0.15, 0.15)
 
+        mass = self.GRAVITY / 9.8
         target_force = (
-            self.mass * (
+            mass * (
                 self.P_COEFF_FOR * pos_e
                 + self.I_COEFF_FOR * self.integral_pos_e
                 + self.D_COEFF_FOR * vel_e
                 + target_acc
             )
-            + np.array([0.0, 0.0, self.gravity_mag])
+            + np.array([0.0, 0.0, self.GRAVITY])
         )
 
-        # Orthonormal desired attitude frame (R_sp)
-        norm_f = np.linalg.norm(target_force)
-        z_body_des = target_force / norm_f if norm_f > 1e-4 else np.array([0.0, 0.0, 1.0])
+        R_meas = R.from_quat(cur_quat_xyzw).as_matrix()
+        scalar_thrust = max(0.0, np.dot(target_force, R_meas[:, 2]))
+        thrust = (math.sqrt(scalar_thrust / (4.0 * self.KF)) - self.PWM2RPM_CONST) / self.PWM2RPM_SCALE
 
+        # Construct desired 3D orthonormal basis (R_sp)
+        norm_tf = np.linalg.norm(target_force)
+        z_body_des = target_force / norm_tf if norm_tf > 1e-4 else np.array([0.0, 0.0, 1.0])
         x_c_des = np.array([math.cos(target_yaw), math.sin(target_yaw), 0.0])
         y_body_des = np.cross(z_body_des, x_c_des)
-        norm_y = np.linalg.norm(y_body_des)
-        y_body_des = y_body_des / norm_y if norm_y > 1e-4 else np.array([0.0, 1.0, 0.0])
+        norm_yb = np.linalg.norm(y_body_des)
+        y_body_des = y_body_des / norm_yb if norm_yb > 1e-4 else np.array([0.0, 1.0, 0.0])
         x_body_des = np.cross(y_body_des, z_body_des)
 
         R_sp = np.column_stack((x_body_des, y_body_des, z_body_des))
         q_sp_xyzw = R.from_matrix(R_sp).as_quat()
 
-        # Convert to paper's [qw, qx, qy, qz] convention
         q_sp = np.array([q_sp_xyzw[3], q_sp_xyzw[0], q_sp_xyzw[1], q_sp_xyzw[2]])
         q_meas = np.array([cur_quat_xyzw[3], cur_quat_xyzw[0], cur_quat_xyzw[1], cur_quat_xyzw[2]])
         q_sp /= np.linalg.norm(q_sp)
         q_meas /= np.linalg.norm(q_meas)
 
-        # -------------------------------------------------------------
         # 2. Q_P ATTITUDE CONTROLLER (Equations 11, 17-19, 27)
-        # -------------------------------------------------------------
         q_err = self.quat_multiply(self.quat_conjugate(q_meas), q_sp)
-
-        # Shortest-path check
         q_err_short = -q_err if q_err[0] < 0.0 else q_err
 
-        # Eq. 27: w_sp = 2 * Kp * q_err_short
         omega_sp = 2.0 * self.KP_QUAT * q_err_short[1:4]
         omega_sp = np.clip(omega_sp, -self.MAX_RATE_SP, self.MAX_RATE_SP)
 
-        # -------------------------------------------------------------
         # 3. INNER ANGULAR RATE PI-D CONTROLLER
-        # -------------------------------------------------------------
-        omega_err = omega_sp - cur_ang_vel_body
+        omega_meas = R_meas.T @ cur_ang_vel_world
+        omega_err = omega_sp - omega_meas
 
-        self.rate_integral += omega_err * dt
+        self.rate_integral += omega_err * control_timestep
         self.rate_integral = np.clip(self.rate_integral, -0.5, 0.5)
 
         if self.first_step:
             self.d_omega_filt = np.zeros(3)
             self.first_step = False
         else:
-            raw_d = (cur_ang_vel_body - self.prev_omega_meas) / dt
-            self.d_omega_filt = 0.2 * raw_d + 0.8 * self.d_omega_filt
-        self.prev_omega_meas = cur_ang_vel_body.copy()
+            raw_d_omega = (omega_meas - self.prev_omega_meas) / control_timestep
+            self.d_omega_filt = 0.2 * raw_d_omega + 0.8 * self.d_omega_filt
+        self.prev_omega_meas = omega_meas.copy()
 
-        torques = (
+        target_torques = (
             self.KP_RATE * omega_err
             + self.KI_RATE * self.rate_integral
             - self.KD_RATE * self.d_omega_filt
         )
+        target_torques = np.clip(target_torques, -3200.0, 3200.0)
 
-        R_meas = R.from_quat(cur_quat_xyzw).as_matrix()
-        thrust_scalar = max(0.0, float(np.dot(target_force, R_meas[:, 2])))
+        # Actuator Mixer into 4 Motor RPMs
+        pwm = thrust + np.dot(self.MIXER_MATRIX, target_torques)
+        pwm = np.clip(pwm, self.MIN_PWM, self.MAX_PWM)
+        rpm = self.PWM2RPM_SCALE * pwm + self.PWM2RPM_CONST
 
-        return thrust_scalar, torques, q_sp, q_err_short, pos_e
+        return rpm, pos_e, q_err_short
 
 
-# =====================================================================
-# 2. TRAJECTORY GENERATOR
-# =====================================================================
-def get_trajectory_setpoint(mode, t, speed=1.0, alt=1.5, scale=2.0):
-    if mode == 0:  # Figure-8 (Lemniscate)
+def calculate_trajectory(mode, t, speed=1.0, alt=1.5, scale=2.0):
+    if mode == 0:  # Figure-8
         if t < 2.0:
             theta, theta_dot, theta_ddot = 0.0, 0.0, 0.0
         elif t < 4.0:
@@ -209,7 +196,7 @@ def get_trajectory_setpoint(mode, t, speed=1.0, alt=1.5, scale=2.0):
         ay = -scale * math.sin(theta) * (theta_dot**2)
         az = 0.0
 
-    else:  # Static Hover Waypoint
+    else:  # Hover Waypoint
         x, y, z = 0.0, 0.0, alt
         vx, vy, vz = 0.0, 0.0, 0.0
         ax, ay, az = 0.0, 0.0, 0.0
@@ -226,128 +213,70 @@ def get_trajectory_setpoint(mode, t, speed=1.0, alt=1.5, scale=2.0):
     return target_pos, target_vel, target_acc, target_yaw
 
 
-# =====================================================================
-# 3. PYBULLET QUADROTOR MULTI-BODY CREATOR
-# =====================================================================
-def create_quadrotor_multibody(init_pos):
-    """
-    Constructs an aerodynamic Crazyflie-like quadrotor with colored cross-arms and rotor disks.
-    """
-    arm_length = 0.10
-    body_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=[0.03, 0.03, 0.015])
-    body_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=[0.03, 0.03, 0.015], rgbaColor=[0.1, 0.1, 0.15, 1.0])
+def run_interactive_simulation():
+    INIT_XYZ = np.array([[0.0, 0.0, 1.5]])
+    INIT_RPY = np.array([[0.0, 0.0, math.pi/4]])
 
-    # Rotor link properties
-    link_masses = [0.002, 0.002, 0.002, 0.002]
-    link_col_indices = [-1, -1, -1, -1]
-    link_vis_indices = []
+    # 1. Initialize exact CtrlAviary Environment from drones_pybullet_final.ipynb
+    env = CtrlAviary(gui=True, record=False, initial_xyzs=INIT_XYZ, initial_rpys=INIT_RPY)
+    ctrl = PaperQuaternionController(drone_model=env.DRONE_MODEL)
 
-    rotor_coords = [
-        [arm_length, 0.0, 0.005],
-        [-arm_length, 0.0, 0.005],
-        [0.0, arm_length, 0.005],
-        [0.0, -arm_length, 0.005]
-    ]
+    ctrl.P_COEFF_FOR = np.array([8.0, 8.0, 10.0])
+    ctrl.I_COEFF_FOR = np.array([1.5, 1.5, 2.0])
+    ctrl.D_COEFF_FOR = np.array([5.5, 5.5, 6.0])
 
-    for i in range(4):
-        # Front rotors red, rear rotors cyan
-        color = [1.0, 0.2, 0.2, 0.9] if i < 2 else [0.0, 0.8, 1.0, 0.9]
-        vis_shape = p.createVisualShape(p.GEOM_CYLINDER, radius=0.035, length=0.004, rgbaColor=color)
-        link_vis_indices.append(vis_shape)
+    obs, info = env.reset()
+    client = env.CLIENT
 
-    drone_id = p.createMultiBody(
-        baseMass=0.027,  # Crazyflie 27g
-        baseCollisionShapeIndex=body_col,
-        baseVisualShapeIndex=body_vis,
-        basePosition=init_pos,
-        baseOrientation=[0, 0, 0, 1],
-        linkMasses=link_masses,
-        linkCollisionShapeIndices=link_col_indices,
-        linkVisualShapeIndices=link_vis_indices,
-        linkPositions=rotor_coords,
-        linkOrientations=[[0, 0, 0, 1]] * 4,
-        linkInertialFramePositions=[[0, 0, 0]] * 4,
-        linkInertialFrameOrientations=[[0, 0, 0, 1]] * 4,
-        linkParentIndices=[0, 0, 0, 0],
-        linkJointTypes=[p.JOINT_FIXED] * 4,
-        linkJointAxis=[[0, 0, 1]] * 4
-    )
-    return drone_id
+    # 2. Add Native Interactive Control Buttons & Sliders in PyBullet Viewport
+    param_play = p.addUserDebugParameter(" [1] PLAY / PAUSE (Click to Toggle)", 1, 0, 0, physicsClientId=client)
+    param_reset = p.addUserDebugParameter(" [2] RESET SIMULATION (Click to Restart)", 1, 0, 0, physicsClientId=client)
+    param_mode = p.addUserDebugParameter(" [3] TRAJECTORY (0: Fig-8 | 1: Circle | 2: Hover)", 0, 2, 0, physicsClientId=client)
+    param_speed = p.addUserDebugParameter(" [4] FLIGHT SPEED MULTIPLIER", 0.5, 2.0, 1.0, physicsClientId=client)
+    param_alt = p.addUserDebugParameter(" [5] ALTITUDE Z (m)", 0.5, 3.0, 1.5, physicsClientId=client)
 
-
-# =====================================================================
-# 4. MAIN INTERACTIVE SIMULATION ENGINE
-# =====================================================================
-def main():
-    print("="*75)
-    print("  6-DOF QUADROTOR QUATERNION FLIGHT SIMULATOR (GOLABEK ET AL. 2022)")
-    print("  Direct Native PyBullet Engine + Interactive GUI Controls")
-    print("="*75)
-
-    # 1. Connect to PyBullet GUI with clean viewing configuration
-    client = p.connect(p.GUI)
-    p.setAdditionalSearchPath(pybullet_data.getDataPath())
-    p.configureDebugVisualizer(p.COV_ENABLE_GUI, 1)
-    p.configureDebugVisualizer(p.COV_ENABLE_SHADOWS, 1)
-    p.resetDebugVisualizerCamera(cameraDistance=3.8, cameraYaw=45, cameraPitch=-30, cameraTargetPosition=[0, 0, 1.5])
-    p.setGravity(0, 0, -9.81)
-
-    # Load ground plane
-    plane_id = p.loadURDF("plane.urdf")
-
-    # 2. Add Native Interactive Control Buttons & Sliders in PyBullet
-    param_play = p.addUserDebugParameter(" [1] PLAY / PAUSE (Click to Toggle)", 1, 0, 0)
-    param_reset = p.addUserDebugParameter(" [2] RESET SIMULATION (Click to Re-arm)", 1, 0, 0)
-    param_mode = p.addUserDebugParameter(" [3] TRAJECTORY (0: Fig-8 | 1: Circle | 2: Hover)", 0, 2, 0)
-    param_speed = p.addUserDebugParameter(" [4] FLIGHT SPEED MULTIPLIER", 0.5, 2.5, 1.0)
-    param_alt = p.addUserDebugParameter(" [5] ALTITUDE Z (m)", 0.5, 3.0, 1.5)
-
-    # State variables for button click detection
     prev_play_clicks = 0
     prev_reset_clicks = 0
     is_running = True
     current_mode = 0
 
-    init_pos = np.array([0.0, 0.0, 1.5])
-    drone_id = create_quadrotor_multibody(init_pos)
-    ctrl = NotebookQuaternionController(mass=0.035, gravity=9.81)
-
-    # 3. Setup Synchronized Live Telemetry Plot
+    # 3. Setup Live Synchronized Telemetry Dashboard
     plt.ion()
-    fig, (ax_r, ax_p, ax_y) = plt.subplots(3, 1, figsize=(6, 7))
-    fig.canvas.manager.set_window_title('Live 3-Axis Attitude Telemetry (Golabek et al. Q_P)')
-    
-    for ax, title, col in zip([ax_r, ax_p, ax_y], ['Roll φ [deg]', 'Pitch θ [deg]', 'Yaw ψ [deg]'], ['#FF5252', '#69F0AE', '#448AFF']):
+    fig, (ax_roll, ax_pitch, ax_yaw) = plt.subplots(3, 1, figsize=(6, 8))
+    fig.canvas.manager.set_window_title('Live Flight Telemetry (Golabek et al. Q_P Controller)')
+
+    for ax, title, col in zip([ax_roll, ax_pitch, ax_yaw], ['Roll (rad)', 'Pitch (rad)', 'Yaw (rad)'], ['#FF5252', '#69F0AE', '#448AFF']):
         ax.set_title(title, fontweight='bold', fontsize=10)
         ax.set_xlim(0, 15)
         ax.grid(True, linestyle='--', alpha=0.6)
-    ax_r.set_ylim(-35, 35)
-    ax_p.set_ylim(-35, 35)
-    ax_y.set_ylim(-190, 190)
+    ax_roll.set_ylim(-1.0, 1.0)
+    ax_pitch.set_ylim(-1.0, 1.0)
+    ax_yaw.set_ylim(-3.5, 3.5)
 
-    line_roll, = ax_r.plot([], [], color='#FF5252', lw=2.0, label='Measured Roll')
-    line_pitch, = ax_p.plot([], [], color='#69F0AE', lw=2.0, label='Measured Pitch')
-    line_yaw, = ax_y.plot([], [], color='#448AFF', lw=2.0, label='Measured Yaw')
+    line_roll, = ax_roll.plot([], [], color='#FF5252', lw=2.0)
+    line_pitch, = ax_pitch.plot([], [], color='#69F0AE', lw=2.0)
+    line_yaw, = ax_yaw.plot([], [], color='#448AFF', lw=2.0)
+
     fig.tight_layout()
     fig.canvas.draw()
     fig.canvas.flush_events()
 
-    # Target path item IDs tracking
-    target_line_ids = []
-    trail_line_ids = []
+    # Path lines tracking
+    target_lines = []
+    trail_lines = []
 
-    def redraw_target_path(mode, alt):
-        nonlocal target_line_ids
-        for line_id in target_line_ids:
+    def draw_path(mode, alt):
+        nonlocal target_lines
+        for lid in target_lines:
             try:
-                p.removeUserDebugItem(line_id)
+                p.removeUserDebugItem(lid, physicsClientId=client)
             except Exception:
                 pass
-        target_line_ids.clear()
+        target_lines.clear()
 
-        theta_samples = np.linspace(0, 2*math.pi, 200)
+        th_samples = np.linspace(0, 2*math.pi, 200)
         xs, ys, zs = [], [], []
-        for th in theta_samples:
+        for th in th_samples:
             if mode == 0:
                 xs.append(2.0 * math.sin(th))
                 ys.append(2.0 * math.sin(th) * math.cos(th))
@@ -362,156 +291,131 @@ def main():
                 zs.append(alt)
 
         for j in range(len(xs) - 1):
-            lid = p.addUserDebugLine([xs[j], ys[j], zs[j]], [xs[j+1], ys[j+1], zs[j+1]], [1, 0, 0], 2.5, 0)
-            target_line_ids.append(lid)
+            lid = p.addUserDebugLine([xs[j], ys[j], zs[j]], [xs[j+1], ys[j+1], zs[j+1]], [1, 0, 0], 2.0, 0, physicsClientId=client)
+            target_lines.append(lid)
 
-    redraw_target_path(0, 1.5)
+    draw_path(0, 1.5)
 
+    time_data, roll_data, pitch_data, yaw_data = [], [], [], []
+    prev_actual_pos = obs[0][0:3]
     sim_time = 0.0
-    dt = 1.0 / 240.0  # 240 Hz PyBullet physics rate
-    t_hist, roll_hist, pitch_hist, yaw_hist = [], [], [], []
-    prev_drone_pos = init_pos.copy()
-    step_count = 0
+    step_i = 0
 
-    print(">> Simulator Running! Use PyBullet GUI on top-right to Pause, Resume, or Reset.")
+    print(">> CtrlAviary Flight Simulator Active!")
+    print(">> Controls available on PyBullet GUI panel (top-right).")
 
-    # 4. Main Simulation Loop
     try:
         while True:
-            # Safely check if PyBullet window is still connected
+            # Check connection
             try:
-                if not p.isConnected():
+                if not p.isConnected(client):
                     break
             except Exception:
                 break
 
-            # Check Play/Pause Click
-            play_clicks = p.readUserDebugParameter(param_play)
+            # Play / Pause Toggle
+            play_clicks = p.readUserDebugParameter(param_play, physicsClientId=client)
             if play_clicks != prev_play_clicks:
                 prev_play_clicks = play_clicks
                 is_running = not is_running
                 print(f"[STATUS] Simulation {'RESUMED' if is_running else 'PAUSED'}")
 
-            # Check Reset Click
-            reset_clicks = p.readUserDebugParameter(param_reset)
+            # Reset Trigger
+            reset_clicks = p.readUserDebugParameter(param_reset, physicsClientId=client)
             if reset_clicks != prev_reset_clicks:
                 prev_reset_clicks = reset_clicks
                 sim_time = 0.0
+                obs, info = env.reset()
                 ctrl.reset_all_states()
-                p.resetBasePositionAndOrientation(drone_id, init_pos, [0, 0, 0, 1])
-                p.resetBaseVelocity(drone_id, [0, 0, 0], [0, 0, 0])
-                prev_drone_pos = init_pos.copy()
-                t_hist.clear()
-                roll_hist.clear()
-                pitch_hist.clear()
-                yaw_hist.clear()
-                for lid in trail_line_ids:
+                prev_actual_pos = obs[0][0:3]
+                time_data.clear()
+                roll_data.clear()
+                pitch_data.clear()
+                yaw_data.clear()
+                for lid in trail_lines:
                     try:
-                        p.removeUserDebugItem(lid)
+                        p.removeUserDebugItem(lid, physicsClientId=client)
                     except Exception:
                         pass
-                trail_line_ids.clear()
-                mode_val = int(round(p.readUserDebugParameter(param_mode)))
-                alt_val = p.readUserDebugParameter(param_alt)
-                redraw_target_path(mode_val, alt_val)
+                trail_lines.clear()
+                m = int(round(p.readUserDebugParameter(param_mode, physicsClientId=client)))
+                a = p.readUserDebugParameter(param_alt, physicsClientId=client)
+                draw_path(m, a)
                 print("[STATUS] Simulation RESET to initial condition.")
 
-            # Read Mode & Alt sliders
-            mode_val = int(round(p.readUserDebugParameter(param_mode)))
-            speed_val = p.readUserDebugParameter(param_speed)
-            alt_val = p.readUserDebugParameter(param_alt)
+            # Read sliders
+            m = int(round(p.readUserDebugParameter(param_mode, physicsClientId=client)))
+            spd = p.readUserDebugParameter(param_speed, physicsClientId=client)
+            alt = p.readUserDebugParameter(param_alt, physicsClientId=client)
 
-            if mode_val != current_mode:
-                current_mode = mode_val
-                redraw_target_path(current_mode, alt_val)
+            if m != current_mode:
+                current_mode = m
+                draw_path(current_mode, alt)
 
             if is_running:
-                # 1. Trajectory Setpoint
-                target_pos, target_vel, target_acc, target_yaw = get_trajectory_setpoint(
-                    current_mode, sim_time, speed=speed_val, alt=alt_val, scale=2.0
+                current_state = obs[0]
+                current_pos = current_state[0:3]
+                current_rpy = current_state[7:10]
+
+                target_pos, target_vel, target_acc, target_yaw = calculate_trajectory(
+                    current_mode, sim_time, speed=spd, alt=alt, scale=2.0
                 )
 
-                # 2. Get PyBullet Drone State
-                drone_pos, drone_orn = p.getBasePositionAndOrientation(drone_id)
-                cur_pos = np.array(drone_pos)
-                cur_quat_xyzw = np.array(drone_orn)  # [x, y, z, w]
-
-                lin_vel, ang_vel_world = p.getBaseVelocity(drone_id)
-                cur_vel = np.array(lin_vel)
-                R_mat = R.from_quat(cur_quat_xyzw).as_matrix()
-                cur_ang_vel_body = R_mat.T @ np.array(ang_vel_world)
-
-                # 3. Compute Control Law (Golabek et al. Q_P)
-                thrust_scalar, torques, q_sp, q_err_short, pos_e = ctrl.compute_control(
-                    dt, cur_pos, cur_vel, cur_quat_xyzw, cur_ang_vel_body,
-                    target_pos, target_vel, target_acc, target_yaw
-                )
-
-                # 4. Apply Forces & Moments to PyBullet Rigid-Body
-                thrust_world = R_mat @ np.array([0.0, 0.0, thrust_scalar])
-                p.applyExternalForce(drone_id, -1, thrust_world, [0, 0, 0], p.WORLD_FRAME)
-                p.applyExternalTorque(drone_id, -1, R_mat @ torques, p.WORLD_FRAME)
-
-                # Aerodynamic Damping
-                p.applyExternalForce(drone_id, -1, -0.015 * cur_vel, [0, 0, 0], p.WORLD_FRAME)
-                p.applyExternalTorque(drone_id, -1, -0.0005 * np.array(ang_vel_world), p.WORLD_FRAME)
-
-                # Step Physics
-                p.stepSimulation()
-                sim_time += dt
+                # Record Telemetry
+                time_data.append(sim_time)
+                roll_data.append(current_rpy[0])
+                pitch_data.append(current_rpy[1])
+                yaw_data.append(current_rpy[2])
 
                 # Draw Blue Trailing Path
-                if step_count % 8 == 0:
-                    lid = p.addUserDebugLine(prev_drone_pos, cur_pos, [0, 0.8, 1], 2.0, 0)
-                    trail_line_ids.append(lid)
-                    if len(trail_line_ids) > 250:
-                        old_id = trail_line_ids.pop(0)
-                        try:
-                            p.removeUserDebugItem(old_id)
-                        except Exception:
-                            pass
-                    prev_drone_pos = cur_pos.copy()
-
-                # Record Telemetry for Plotting
-                euler = R.from_quat(cur_quat_xyzw).as_euler('xyz', degrees=True)
-                t_hist.append(sim_time)
-                roll_hist.append(euler[0])
-                pitch_hist.append(euler[1])
-                yaw_hist.append(euler[2])
-
-                if len(t_hist) > 300:
-                    t_hist.pop(0)
-                    roll_hist.pop(0)
-                    pitch_hist.pop(0)
-                    yaw_hist.pop(0)
-
-                # 5. Flush Telemetry Plot (every 24 steps -> 10 Hz graph update)
-                if step_count % 24 == 0:
+                lid = p.addUserDebugLine(prev_actual_pos, current_pos, [0, 0, 1], 2.0, 0, physicsClientId=client)
+                trail_lines.append(lid)
+                if len(trail_lines) > 300:
+                    old_lid = trail_lines.pop(0)
                     try:
-                        line_roll.set_data(t_hist, roll_hist)
-                        line_pitch.set_data(t_hist, pitch_hist)
-                        line_yaw.set_data(t_hist, yaw_hist)
-                        for ax in [ax_r, ax_p, ax_y]:
+                        p.removeUserDebugItem(old_lid, physicsClientId=client)
+                    except Exception:
+                        pass
+                prev_actual_pos = current_pos
+
+                # Update Telemetry Plot at 10 Hz
+                if step_i % 24 == 0:
+                    try:
+                        line_roll.set_data(time_data, roll_data)
+                        line_pitch.set_data(time_data, pitch_data)
+                        line_yaw.set_data(time_data, yaw_data)
+                        for ax in [ax_roll, ax_pitch, ax_yaw]:
                             ax.set_xlim(max(0, sim_time - 12), sim_time + 1)
                         fig.canvas.draw_idle()
                         fig.canvas.flush_events()
                     except Exception:
                         pass
 
-                step_count += 1
-                time.sleep(dt * 0.4)  # Smooth real-time visualization pace
+                # Compute exact paper control law
+                action, pos_error, quat_error = ctrl.computeControlFromState(
+                    control_timestep=env.CTRL_TIMESTEP,
+                    state=current_state,
+                    target_pos=target_pos,
+                    target_vel=target_vel,
+                    target_acc=target_acc,
+                    target_yaw=target_yaw
+                )
+
+                # Step through exact Gym environment physics
+                obs, reward, terminated, truncated, info = env.step(np.array([action]))
+                sim_time += env.CTRL_TIMESTEP * spd
+                step_i += 1
+                time.sleep(env.CTRL_TIMESTEP)
             else:
-                # When paused, keep rendering without stepping physics
                 time.sleep(0.02)
 
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        print(f"Simulation exiting: {e}")
+        print(f"Exiting simulator: {e}")
     finally:
         try:
-            if p.isConnected():
-                p.disconnect()
+            env.close()
         except Exception:
             pass
         try:
@@ -521,4 +425,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run_interactive_simulation()
