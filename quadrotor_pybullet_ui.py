@@ -157,7 +157,7 @@ class PaperQuaternionController(DSLPIDControl):
 
 
 def calculate_trajectory(mode, t, speed=1.0, alt=1.5, scale=2.0):
-    if mode == 0:  # Figure-8
+    if mode == 0:  # 1. Figure-8 (Lemniscate)
         if t < 2.0:
             theta, theta_dot, theta_ddot = 0.0, 0.0, 0.0
         elif t < 4.0:
@@ -181,7 +181,7 @@ def calculate_trajectory(mode, t, speed=1.0, alt=1.5, scale=2.0):
         ay = -2.0 * scale * math.sin(2.0 * theta) * (theta_dot**2) + scale * math.cos(2.0 * theta) * theta_ddot
         az = 0.0
 
-    elif mode == 1:  # Circle
+    elif mode == 1:  # 2. Circular Orbit
         theta = speed * max(0.0, t - 1.0) * 0.8
         theta_dot = speed * 0.8 if t >= 1.0 else 0.0
         x = scale * math.cos(theta)
@@ -196,7 +196,60 @@ def calculate_trajectory(mode, t, speed=1.0, alt=1.5, scale=2.0):
         ay = -scale * math.sin(theta) * (theta_dot**2)
         az = 0.0
 
-    else:  # Hover Waypoint
+    elif mode == 2:  # 3. 3D Helix / Corkscrew Vertical Climb
+        theta = speed * max(0.0, t - 1.0) * 0.8
+        theta_dot = speed * 0.8 if t >= 1.0 else 0.0
+        
+        # Helical altitude oscillation between alt - 0.5m and alt + 0.6m
+        climb_freq = 0.35 * speed
+        x = scale * math.cos(theta)
+        y = scale * math.sin(theta)
+        z = alt + 0.55 * math.sin(climb_freq * max(0.0, t - 1.0))
+
+        vx = -scale * math.sin(theta) * theta_dot
+        vy = scale * math.cos(theta) * theta_dot
+        vz = 0.55 * climb_freq * math.cos(climb_freq * max(0.0, t - 1.0)) if t >= 1.0 else 0.0
+
+        ax = -scale * math.cos(theta) * (theta_dot**2)
+        ay = -scale * math.sin(theta) * (theta_dot**2)
+        az = -0.55 * (climb_freq**2) * math.sin(climb_freq * max(0.0, t - 1.0)) if t >= 1.0 else 0.0
+
+    elif mode == 3:  # 4. Cloverleaf 4-Leaf Spatial Maneuver: r = scale * cos(2*theta)
+        theta = speed * max(0.0, t - 1.0) * 0.6
+        theta_dot = speed * 0.6 if t >= 1.0 else 0.0
+        r_leaf = scale * (0.6 + 0.5 * math.cos(2.0 * theta))
+        dr_dt = -scale * math.sin(2.0 * theta) * 2.0 * theta_dot
+        d2r_dt2 = -scale * 4.0 * math.cos(2.0 * theta) * (theta_dot**2)
+
+        x = r_leaf * math.cos(theta)
+        y = r_leaf * math.sin(theta)
+        z = alt + 0.25 * math.sin(4.0 * theta)
+
+        vx = dr_dt * math.cos(theta) - r_leaf * math.sin(theta) * theta_dot
+        vy = dr_dt * math.sin(theta) + r_leaf * math.cos(theta) * theta_dot
+        vz = 0.25 * 4.0 * theta_dot * math.cos(4.0 * theta)
+
+        ax = d2r_dt2 * math.cos(theta) - 2.0 * dr_dt * math.sin(theta) * theta_dot - r_leaf * math.cos(theta) * (theta_dot**2)
+        ay = d2r_dt2 * math.sin(theta) + 2.0 * dr_dt * math.cos(theta) * theta_dot - r_leaf * math.sin(theta) * (theta_dot**2)
+        az = -0.25 * 16.0 * (theta_dot**2) * math.sin(4.0 * theta)
+
+    elif mode == 4:  # 5. High-Speed Slalom / S-Curve Lateral Zig-Zag
+        w_slalom = speed * max(0.0, t - 1.0) * 0.7
+        w_dot = speed * 0.7 if t >= 1.0 else 0.0
+        # Oval track with rapid high-frequency lateral weaving
+        x = scale * 1.5 * math.sin(w_slalom)
+        y = scale * 0.8 * math.sin(3.0 * w_slalom)
+        z = alt
+
+        vx = scale * 1.5 * math.cos(w_slalom) * w_dot
+        vy = scale * 0.8 * 3.0 * math.cos(3.0 * w_slalom) * w_dot
+        vz = 0.0
+
+        ax = -scale * 1.5 * math.sin(w_slalom) * (w_dot**2)
+        ay = -scale * 0.8 * 9.0 * math.sin(3.0 * w_slalom) * (w_dot**2)
+        az = 0.0
+
+    else:  # Static Hover Waypoint
         x, y, z = 0.0, 0.0, alt
         vx, vy, vz = 0.0, 0.0, 0.0
         ax, ay, az = 0.0, 0.0, 0.0
@@ -234,7 +287,7 @@ def run_interactive_simulation():
     # 2. Add Native Interactive Control Buttons & Sliders in PyBullet Viewport
     param_play = p.addUserDebugParameter(" [1] PLAY / PAUSE (Click to Toggle)", 1, 0, 0, physicsClientId=client)
     param_reset = p.addUserDebugParameter(" [2] RESET SIMULATION (Click to Restart)", 1, 0, 0, physicsClientId=client)
-    param_mode = p.addUserDebugParameter(" [3] TRAJECTORY (0: Fig-8 | 1: Circle | 2: Hover)", 0, 2, 0, physicsClientId=client)
+    param_mode = p.addUserDebugParameter(" [3] TRAJECTORY (0:Fig8 | 1:Circ | 2:Helix | 3:Clover | 4:Slalom)", 0, 4, 0, physicsClientId=client)
     param_speed = p.addUserDebugParameter(" [4] FLIGHT SPEED MULTIPLIER", 0.5, 2.0, 1.0, physicsClientId=client)
     param_alt = p.addUserDebugParameter(" [5] ALTITUDE Z (m)", 0.5, 3.0, 1.5, physicsClientId=client)
 
@@ -269,6 +322,14 @@ def run_interactive_simulation():
     target_lines = []
     trail_lines = []
 
+    trajectory_names = [
+        "1: Figure-8 (Lemniscate)",
+        "2: Circular Orbit",
+        "3: 3D Helix Vertical Climb",
+        "4: Cloverleaf 4-Leaf Spatial",
+        "5: High-Speed Slalom Zig-Zag"
+    ]
+
     def draw_path(mode, alt):
         nonlocal target_lines
         for lid in target_lines:
@@ -278,16 +339,32 @@ def run_interactive_simulation():
                 pass
         target_lines.clear()
 
-        th_samples = np.linspace(0, 2*math.pi, 200)
+        # Sample 300 points for dense, smooth mathematical trajectory visualization
+        th_samples = np.linspace(0, 2*math.pi, 300)
         xs, ys, zs = [], [], []
+        scale = 2.0
+
         for th in th_samples:
-            if mode == 0:
-                xs.append(2.0 * math.sin(th))
-                ys.append(2.0 * math.sin(th) * math.cos(th))
+            if mode == 0:  # Figure-8
+                xs.append(scale * math.sin(th))
+                ys.append(scale * math.sin(th) * math.cos(th))
                 zs.append(alt)
-            elif mode == 1:
-                xs.append(2.0 * math.cos(th))
-                ys.append(2.0 * math.sin(th))
+            elif mode == 1:  # Circle
+                xs.append(scale * math.cos(th))
+                ys.append(scale * math.sin(th))
+                zs.append(alt)
+            elif mode == 2:  # 3D Helix
+                xs.append(scale * math.cos(th))
+                ys.append(scale * math.sin(th))
+                zs.append(alt + 0.55 * math.sin(th))
+            elif mode == 3:  # Cloverleaf
+                r_leaf = scale * (0.6 + 0.5 * math.cos(2.0 * th))
+                xs.append(r_leaf * math.cos(th))
+                ys.append(r_leaf * math.sin(th))
+                zs.append(alt + 0.25 * math.sin(4.0 * th))
+            elif mode == 4:  # Slalom
+                xs.append(scale * 1.5 * math.sin(th))
+                ys.append(scale * 0.8 * math.sin(3.0 * th))
                 zs.append(alt)
             else:
                 xs.append(0.0)
@@ -295,7 +372,7 @@ def run_interactive_simulation():
                 zs.append(alt)
 
         for j in range(len(xs) - 1):
-            lid = p.addUserDebugLine([xs[j], ys[j], zs[j]], [xs[j+1], ys[j+1], zs[j+1]], [1, 0, 0], 2.0, 0, physicsClientId=client)
+            lid = p.addUserDebugLine([xs[j], ys[j], zs[j]], [xs[j+1], ys[j+1], zs[j+1]], [1, 0, 0], 2.2, 0, physicsClientId=client)
             target_lines.append(lid)
 
     draw_path(0, 1.5)
@@ -308,20 +385,25 @@ def run_interactive_simulation():
     print(">> CtrlAviary Flight Simulator Active & Running smoothly!")
     print(">> KEYBOARD SHORTCUTS:")
     print(">>   [SPACE] : Play / Pause")
-    print(">>   [R]     : Reset Simulation")
-    print(">>   [1/2/3] : Switch Trajectory (1: Fig-8, 2: Circle, 3: Hover)")
-    print(">> Controls also clickable on the top-right PyBullet panel.")
+    print(">>   [R]     : Reset Simulation to Origin")
+    print(">>   [1]     : Figure-8 (Lemniscate)")
+    print(">>   [2]     : Circular Orbit")
+    print(">>   [3]     : 3D Helix Corkscrew Climb")
+    print(">>   [4]     : Cloverleaf 4-Leaf Maneuver")
+    print(">>   [5]     : High-Speed Slalom Zig-Zag")
+    print(">> Controls also selectable via slider [3] on the top-right panel.")
 
     status_text_id = -1
 
     def update_hud_text(running, mode_idx, spd_val, alt_val):
         nonlocal status_text_id
-        msg = f"STATUS: {'[FLYING]' if running else '[PAUSED]'} | Mode: {['Fig-8', 'Circle', 'Hover'][mode_idx]} | Spd: {spd_val:.1f}x | [SPACE]=Pause, [R]=Reset"
+        m_name = trajectory_names[mode_idx] if mode_idx < len(trajectory_names) else "Custom"
+        msg = f"STATUS: {'[FLYING]' if running else '[PAUSED]'} | Path: {m_name} | Spd: {spd_val:.1f}x | [SPACE]=Pause, [R]=Reset, Keys [1-5]=Change Path"
         col = [0.0, 1.0, 0.4] if running else [1.0, 0.6, 0.0]
         if status_text_id == -1:
-            status_text_id = p.addUserDebugText(msg, [-2.2, 0.0, alt_val + 0.8], col, 1.3, physicsClientId=client)
+            status_text_id = p.addUserDebugText(msg, [-2.6, 0.0, alt_val + 0.9], col, 1.3, physicsClientId=client)
         else:
-            status_text_id = p.addUserDebugText(msg, [-2.2, 0.0, alt_val + 0.8], col, 1.3, replaceItemUniqueId=status_text_id, physicsClientId=client)
+            status_text_id = p.addUserDebugText(msg, [-2.6, 0.0, alt_val + 0.9], col, 1.3, replaceItemUniqueId=status_text_id, physicsClientId=client)
 
     update_hud_text(is_running, current_mode, 1.0, 1.5)
 
@@ -363,13 +445,16 @@ def run_interactive_simulation():
                 update_hud_text(is_running, current_mode, spd, alt)
                 print("[STATUS] Simulation RESET to origin (via R key)")
 
-            # '1', '2', '3' keys to switch trajectory modes
-            for k_code, m_idx in [(ord('1'), 0), (ord('2'), 1), (ord('3'), 2)]:
+            # '1', '2', '3', '4', '5' keys to switch trajectory modes directly
+            for k_char, m_idx in [('1', 0), ('2', 1), ('3', 2), ('4', 3), ('5', 4)]:
+                k_code = ord(k_char)
                 if k_code in keys and (keys[k_code] & p.KEY_WAS_TRIGGERED):
                     current_mode = m_idx
+                    sim_time = 0.0
+                    ctrl.reset_all_states()
                     draw_path(current_mode, alt)
                     update_hud_text(is_running, current_mode, spd, alt)
-                    print(f"[STATUS] Switched to trajectory: {['Figure-8', 'Circle', 'Hover'][current_mode]}")
+                    print(f"[STATUS] Switched to trajectory: {trajectory_names[current_mode]}")
 
             # 2. Check GUI Button Clicks
             play_clicks = p.readUserDebugParameter(param_play, physicsClientId=client)
