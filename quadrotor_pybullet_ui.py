@@ -4,11 +4,11 @@ Interactive 6-DOF Quadrotor Quaternion Flight Simulator & Control Dashboard
 =============================================================================
 EXACT gym-pybullet-drones implementation matching drones_pybullet_final.ipynb
 with full interactive UI controls:
-  - [Play / Pause] Button
-  - [Reset Simulation] Button
-  - [Flight Speed Multiplier] Slider
-  - [Trajectory Selector] Dropdown: Figure-8 (Lemniscate), Circle, Hover Waypoint
-  - [Flight Altitude Z] Slider
+  - [1] PLAY / PAUSE: Click to toggle pause/fly
+  - [2] RESET SIMULATION: Click to restart from origin
+  - [3] TRAJECTORY SLIDER: 0 = Figure-8 | 1 = Circle | 2 = Hover
+  - [4] SPEED MULTIPLIER: 0.5x to 2.0x
+  - [5] ALTITUDE SLIDER: 0.5m to 3.0m
   - Live 3D Trajectory in CtrlAviary PyBullet Window
   - Synchronized Real-time Telemetry Dashboard (Roll, Pitch, Yaw)
 =============================================================================
@@ -228,6 +228,9 @@ def run_interactive_simulation():
     obs, info = env.reset()
     client = env.CLIENT
 
+    # Position camera comfortably showing drone and trajectory
+    p.resetDebugVisualizerCamera(cameraDistance=2.5, cameraYaw=45, cameraPitch=-25, cameraTargetPosition=[0, 0, 1.5], physicsClientId=client)
+
     # 2. Add Native Interactive Control Buttons & Sliders in PyBullet Viewport
     param_play = p.addUserDebugParameter(" [1] PLAY / PAUSE (Click to Toggle)", 1, 0, 0, physicsClientId=client)
     param_reset = p.addUserDebugParameter(" [2] RESET SIMULATION (Click to Restart)", 1, 0, 0, physicsClientId=client)
@@ -235,27 +238,28 @@ def run_interactive_simulation():
     param_speed = p.addUserDebugParameter(" [4] FLIGHT SPEED MULTIPLIER", 0.5, 2.0, 1.0, physicsClientId=client)
     param_alt = p.addUserDebugParameter(" [5] ALTITUDE Z (m)", 0.5, 3.0, 1.5, physicsClientId=client)
 
-    prev_play_clicks = 0
-    prev_reset_clicks = 0
+    # Initial read to record baseline click state
+    prev_play_clicks = p.readUserDebugParameter(param_play, physicsClientId=client)
+    prev_reset_clicks = p.readUserDebugParameter(param_reset, physicsClientId=client)
     is_running = True
     current_mode = 0
 
-    # 3. Setup Live Synchronized Telemetry Dashboard
+    # 3. Setup Lightweight Synchronized Telemetry Dashboard
     plt.ion()
-    fig, (ax_roll, ax_pitch, ax_yaw) = plt.subplots(3, 1, figsize=(6, 8))
+    fig, (ax_roll, ax_pitch, ax_yaw) = plt.subplots(3, 1, figsize=(5.5, 7.0))
     fig.canvas.manager.set_window_title('Live Flight Telemetry (Golabek et al. Q_P Controller)')
 
     for ax, title, col in zip([ax_roll, ax_pitch, ax_yaw], ['Roll (rad)', 'Pitch (rad)', 'Yaw (rad)'], ['#FF5252', '#69F0AE', '#448AFF']):
-        ax.set_title(title, fontweight='bold', fontsize=10)
+        ax.set_title(title, fontweight='bold', fontsize=9)
         ax.set_xlim(0, 15)
-        ax.grid(True, linestyle='--', alpha=0.6)
+        ax.grid(True, linestyle='--', alpha=0.5)
     ax_roll.set_ylim(-1.0, 1.0)
     ax_pitch.set_ylim(-1.0, 1.0)
     ax_yaw.set_ylim(-3.5, 3.5)
 
-    line_roll, = ax_roll.plot([], [], color='#FF5252', lw=2.0)
-    line_pitch, = ax_pitch.plot([], [], color='#69F0AE', lw=2.0)
-    line_yaw, = ax_yaw.plot([], [], color='#448AFF', lw=2.0)
+    line_roll, = ax_roll.plot([], [], color='#FF5252', lw=1.8)
+    line_pitch, = ax_pitch.plot([], [], color='#69F0AE', lw=1.8)
+    line_yaw, = ax_yaw.plot([], [], color='#448AFF', lw=1.8)
 
     fig.tight_layout()
     fig.canvas.draw()
@@ -301,12 +305,12 @@ def run_interactive_simulation():
     sim_time = 0.0
     step_i = 0
 
-    print(">> CtrlAviary Flight Simulator Active!")
-    print(">> Controls available on PyBullet GUI panel (top-right).")
+    print(">> CtrlAviary Flight Simulator Active & Running smoothly!")
+    print(">> Click '[1] PLAY / PAUSE' or '[2] RESET SIMULATION' on the top-right panel to interact.")
 
     try:
         while True:
-            # Check connection
+            # Check PyBullet connection
             try:
                 if not p.isConnected(client):
                     break
@@ -368,17 +372,18 @@ def run_interactive_simulation():
                 yaw_data.append(current_rpy[2])
 
                 # Draw Blue Trailing Path
-                lid = p.addUserDebugLine(prev_actual_pos, current_pos, [0, 0, 1], 2.0, 0, physicsClientId=client)
-                trail_lines.append(lid)
-                if len(trail_lines) > 300:
-                    old_lid = trail_lines.pop(0)
-                    try:
-                        p.removeUserDebugItem(old_lid, physicsClientId=client)
-                    except Exception:
-                        pass
-                prev_actual_pos = current_pos
+                if step_i % 6 == 0:
+                    lid = p.addUserDebugLine(prev_actual_pos, current_pos, [0, 0, 1], 2.0, 0, physicsClientId=client)
+                    trail_lines.append(lid)
+                    if len(trail_lines) > 250:
+                        old_lid = trail_lines.pop(0)
+                        try:
+                            p.removeUserDebugItem(old_lid, physicsClientId=client)
+                        except Exception:
+                            pass
+                    prev_actual_pos = current_pos
 
-                # Update Telemetry Plot at 10 Hz
+                # Lightweight 10 Hz Telemetry Plot Refresh
                 if step_i % 24 == 0:
                     try:
                         line_roll.set_data(time_data, roll_data)
@@ -386,7 +391,6 @@ def run_interactive_simulation():
                         line_yaw.set_data(time_data, yaw_data)
                         for ax in [ax_roll, ax_pitch, ax_yaw]:
                             ax.set_xlim(max(0, sim_time - 12), sim_time + 1)
-                        fig.canvas.draw_idle()
                         fig.canvas.flush_events()
                     except Exception:
                         pass
@@ -407,6 +411,8 @@ def run_interactive_simulation():
                 step_i += 1
                 time.sleep(env.CTRL_TIMESTEP)
             else:
+                # Keep GUI responsive while paused
+                fig.canvas.flush_events()
                 time.sleep(0.02)
 
     except KeyboardInterrupt:
