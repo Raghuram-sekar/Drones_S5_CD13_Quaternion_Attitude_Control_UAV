@@ -30,13 +30,13 @@
 
 ---
 
-## Slide 3: Proposed Solution - Quaternion $Q_P$ Controller
+## Slide 3: Proposed Solution - Quaternion $`Q_P`$ Controller
 - **Cascaded Architecture:**
-  - **Outer Loop:** Unit Quaternion Proportional ($Q_P$) controller working in hyper-complex $SO(3)$ space.
+  - **Outer Loop:** Unit Quaternion Proportional ($`Q_P`$) controller working in hyper-complex $SO(3)$ space.
   - **Inner Loop:** 3-Axis Angular Rate PID controllers with dynamic airspeed scaling ($V^2$).
 - **Key Advantages:**
   - Non-singular over full $360^{\circ}$ spatial rotations.
-  - Shortest-path rotation arc enforcement ($q_{w,err} \ge 0$).
+  - Shortest-path rotation arc enforcement ($`q_{w,err} \ge 0`$).
   - Automatic cross-axis decoupling.
 
 ---
@@ -63,10 +63,10 @@ $$
 ---
 
 ## Slide 5: Numerical Toy Example Walkthrough
-- **Knife-Edge Orientation ($90^{\circ}$ Roll, $0^{\circ}$ Pitch):** $q_{meas} = [0.7071, 0.7071, 0, 0]^T$
-- **Pitch Setpoint ($30^{\circ}$ Pitch):** $q_{sp} = [0.9659, 0, 0.2588, 0]^T$
-- **Error Quaternion:** $q_{err} = [0.6830, -0.6830, 0.1830, -0.1830]^T$
-- **Output Rates ($K_p = 3.5$):**
+- **Knife-Edge Orientation ($90^{\circ}$ Roll, $0^{\circ}$ Pitch):** $`q_{meas} = [0.7071, 0.7071, 0, 0]^T`$
+- **Pitch Setpoint ($30^{\circ}$ Pitch):** $`q_{sp} = [0.9659, 0, 0.2588, 0]^T`$
+- **Error Quaternion:** $`q_{err} = [0.6830, -0.6830, 0.1830, -0.1830]^T`$
+- **Output Rates ($`K_p = 3.5`$):**
   - Roll Rate: $-4.78 \text{ rad/s } (-273.94^{\circ}/\text{s})$
   - Pitch Rate: $+1.28 \text{ rad/s } (+73.40^{\circ}/\text{s})$
   - Yaw Rate: $-1.28 \text{ rad/s } (-73.40^{\circ}/\text{s})$
@@ -83,7 +83,7 @@ $$
 ---
 
 ## Slide 7: Conclusion & Roadmap for Final Evaluation
-- **Conclusion:** Quaternion $Q_P$ controller successfully eliminates gimbal lock and cross-coupling errors, outperforming classical Euler PID control.
+- **Conclusion:** Quaternion $`Q_P`$ controller successfully eliminates gimbal lock and cross-coupling errors, outperforming classical Euler PID control.
 - **Roadmap for Final Evaluation:** Expand simulation across all 4 platforms:
   1. `gym-pybullet-drones`
   2. `MuJoCo`

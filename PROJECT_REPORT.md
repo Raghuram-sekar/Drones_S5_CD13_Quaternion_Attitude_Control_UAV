@@ -28,7 +28,7 @@
 ## Executive Summary
 
 
-This project report details the design, mathematical derivation, software-in-the-loop (SITL) simulation, and comparative analysis of a non-singular **Quaternion Proportional ($Q_P$) Attitude Controller** for highly maneuverable fixed-wing unmanned aerial vehicles (UAVs) and aerobatic drones. 
+This project report details the design, mathematical derivation, software-in-the-loop (SITL) simulation, and comparative analysis of a non-singular **Quaternion Proportional ($`Q_P`$) Attitude Controller** for highly maneuverable fixed-wing unmanned aerial vehicles (UAVs) and aerobatic drones. 
 
 Conventional Euler angle controllers ($\phi, \theta, \psi$) suffer from gimbal lock singularities at extreme pitch angles ($\theta = \pm 90^\circ$) and severe cross-coupling between elevator and rudder surfaces at steep bank angles ($80^\circ - 90^\circ$). By executing outer-loop attitude control entirely within unit quaternion space ($SO(3)$), the proposed controller achieves singularity-free attitude tracking, shortest-path rotation arcs via SLERP, and natural aerodynamic decoupling. 
 
@@ -42,9 +42,9 @@ In 6-DOF dynamic flight simulations modeling an Extra 330SC aircraft, the quater
 Flight attitude control forms the core inner loop of an aircraft autopilot system. Modern unmanned aerial vehicles (UAVs), tactical aerobatic drones, and high-performance strike aircraft are increasingly required to execute aggressive 3D spatial maneuvers—including $90^\circ$ knife-edge bank turns, vertical nose-up climbs, inverted flight, and high-g split-S evasions.
 
 Historically, standard autopilot architectures (such as legacy ArduPilot or PX4 configurations) express aircraft 3D orientation using **3 Euler angles**:
-- **Roll ($\phi$):** Tilting the wings left or right around the body longitudinal axis ($\mathbf{X}_b$).
-- **Pitch ($\theta$):** Pointing the nose up or down around the body lateral axis ($\mathbf{Y}_b$).
-- **Yaw ($\psi$):** Pointing the nose left or right around the body vertical axis ($\mathbf{Z}_b$).
+- **Roll ($\phi$):** Tilting the wings left or right around the body longitudinal axis ($`\mathbf{X}_b`$).
+- **Pitch ($\theta$):** Pointing the nose up or down around the body lateral axis ($`\mathbf{Y}_b`$).
+- **Yaw ($\psi$):** Pointing the nose left or right around the body vertical axis ($`\mathbf{Z}_b`$).
 
 While Euler angles provide an intuitive 3-angle representation for dashboard displays, they suffer from **3 major mathematical and aerodynamic flaws** during aggressive drone flight.
 
@@ -54,7 +54,7 @@ While Euler angles provide an intuitive 3-angle representation for dashboard dis
 
 #### ❌ Flaw 1: Gimbal Lock Singularity ($\theta = \pm 90^\circ$)
 
-When an aircraft pitches vertically to $\theta = \pm 90^\circ$, the Roll axis ($\mathbf{X}_b$) rotates into alignment with the Yaw axis ($\mathbf{Z}_b$). As a result, rotations around Roll and Yaw produce the exact same spatial motion, causing a **loss of 1 rotational degree of freedom** (collapsing 3D orientation space into a 2D plane).
+When an aircraft pitches vertically to $\theta = \pm 90^\circ$, the Roll axis ($`\mathbf{X}_b`$) rotates into alignment with the Yaw axis ($`\mathbf{Z}_b`$). As a result, rotations around Roll and Yaw produce the exact same spatial motion, causing a **loss of 1 rotational degree of freedom** (collapsing 3D orientation space into a 2D plane).
 
 <p align="center">
  <img src="figures/fig_gimbal_lock_diagram.png" alt="Gimbal Lock Axis Alignment Diagram" width="850"/>
@@ -94,13 +94,13 @@ Euler transformations require continuous evaluation of expensive transcendental 
 
 ---
 
-### 1.3 The Solution: How We Proceed with Quaternions ($Q_P$ Controller)
+### 1.3 The Solution: How We Proceed with Quaternions ($`Q_P`$ Controller)
 
-To overcome all 3 limitations, this project implements a non-singular **Quaternion Proportional ($Q_P$) Attitude Controller** based on the formulation by Michał Gołąbek et al. (MDPI Electronics 2022).
+To overcome all 3 limitations, this project implements a non-singular **Quaternion Proportional ($`Q_P`$) Attitude Controller** based on the formulation by Michał Gołąbek et al. (MDPI Electronics 2022).
 
 #### 🛡️ How Quaternions Eliminate Every Flaw:
-1. **Four-Component Hyper-Complex Representation:** Quaternions parameterize 3D rotation using 4 scalar values ($q = [q_w, q_x, q_y, q_z]^T$) constrained to a 4D unit hypersphere (group $Sp(1) \cong SO(3)$). Because 4 parameters represent 3 rotational degrees of freedom, there are **no division operations** and **zero singularities (No Gimbal Lock)** at any pitch angle.
-2. **Unified 3D Spatial Geometry:** The $Q_P$ controller computes rotation error as a single 3D vector in body space. At $80^\circ - 90^\circ$ bank angles, it automatically routes control signals to the correct physical surfaces (Rudder for pitch, Elevator for yaw) without requiring gain scheduling.
+1. **Four-Component Hyper-Complex Representation:** Quaternions parameterize 3D rotation using 4 scalar values ($`q = [q_w, q_x, q_y, q_z]^T`$) constrained to a 4D unit hypersphere (group $Sp(1) \cong SO(3)$). Because 4 parameters represent 3 rotational degrees of freedom, there are **no division operations** and **zero singularities (No Gimbal Lock)** at any pitch angle.
+2. **Unified 3D Spatial Geometry:** The $`Q_P`$ controller computes rotation error as a single 3D vector in body space. At $80^\circ - 90^\circ$ bank angles, it automatically routes control signals to the correct physical surfaces (Rudder for pitch, Elevator for yaw) without requiring gain scheduling.
 3. **Pure Algebraic Computation:** Quaternion attitude kinematics rely exclusively on vector cross products, dot products, and scalar multiplications (Hamilton Product)—completely eliminating transcendental trigonometric function calls during flight control loops.
 
 ---
@@ -120,9 +120,9 @@ $$
 q = \begin{bmatrix} q_w \\\\ q_x \\\\ q_y \\\\ q_z \end{bmatrix} = q_w + q_x \mathbf{i} + q_y \mathbf{j} + q_z \mathbf{k}
 $$
 
-where $q_w \in \mathbb{R}$ is the scalar part and $\mathbf{q}_v = [q_x, q_y, q_z]^T \in \mathbb{R}^3$ is the vector imaginary part.
+where $`q_w \in \mathbb{R}`$ is the scalar part and $`\mathbf{q}_v = [q_x, q_y, q_z]^T \in \mathbb{R}^3`$ is the vector imaginary part.
 
-Unit quaternions satisfy the unit norm constraint $\|q\| = \sqrt{q_w^2 + q_x^2 + q_y^2 + q_z^2} = 1$, forming the group $Sp(1) \cong SO(3)$.
+Unit quaternions satisfy the unit norm constraint $`\|q\| = \sqrt{q_w^2 + q_x^2 + q_y^2 + q_z^2} = 1`$, forming the group $Sp(1) \cong SO(3)$.
 
 The **Quaternion Conjugate** $\bar{q}$ and **Inverse**$q^{-1}$(for unit quaternions) are defined as:
 
@@ -164,14 +164,14 @@ $$
 
 ---
 
-### 2.2 Attitude Error Quaternion Derivation ($q_{err}$)
-Let $q_{meas}$ denote the current measured aircraft attitude, and $q_{sp}$ denote the target setpoint quaternion. The intrinsic rotation relationship is:
+### 2.2 Attitude Error Quaternion Derivation ($`q_{err}`$)
+Let $`q_{meas}`$ denote the current measured aircraft attitude, and $`q_{sp}`$ denote the target setpoint quaternion. The intrinsic rotation relationship is:
 
 $$
 q_{sp} = q_{meas} \otimes q_{err}
 $$
 
-Left-multiplying both sides by the conjugate $\bar{q}_{meas}$ yields the explicit attitude error equation:
+Left-multiplying both sides by the conjugate $`\bar{q}_{meas}`$ yields the explicit attitude error equation:
 
 $$
 q_{err} = \bar{q}_{meas} \otimes q_{sp}
@@ -206,22 +206,22 @@ where $\alpha$ is the principal rotation error angle and $\mathbf{e}$ is the uni
 
 ---
 
-### 2.4 Outer-Loop Control Law ($Q_P$ Controller)
-The rate of change of the setpoint quaternion $\dot{q}_{sp}$ is proportional to the error quaternion via proportional gain $K_p$:
+### 2.4 Outer-Loop Control Law ($`Q_P`$ Controller)
+The rate of change of the setpoint quaternion $`\dot{q}_{sp}`$ is proportional to the error quaternion via proportional gain $`K_p`$:
 
 $$
 \dot{q}_{sp} = K_p \cdot q_{err,short}
 $$
 
-The fundamental kinematic differential equation connecting quaternion derivative $\dot{q}$ to body-frame angular rate setpoints $[\omega_{x,sp}, \omega_{y,sp}, \omega_{z,sp}]^T$ is:
+The fundamental kinematic differential equation connecting quaternion derivative $\dot{q}$ to body-frame angular rate setpoints $`[\omega_{x,sp}, \omega_{y,sp}, \omega_{z,sp}]^T`$ is:
 
 $$
 \dot{q} = \frac{1}{2} q \otimes \begin{bmatrix} 0 \\\\ \omega_x \\\\ \omega_y \\\\ \omega_z \end{bmatrix} \implies \boldsymbol{\omega}_{sp} = 2 \, \bar{q}_u \otimes \dot{q}_{sp}
 $$
 
-where $q_u = [1, 0, 0, 0]^T$ is the identity unit quaternion.
+where $`q_u = [1, 0, 0, 0]^T`$ is the identity unit quaternion.
 
-Expanding and simplifying yields the master $Q_P$ outer-loop control law:
+Expanding and simplifying yields the master $`Q_P`$ outer-loop control law:
 
 $$
 \begin{bmatrix} \omega_{x,sp} \\\\ \omega_{y,sp} \\\\ \omega_{z,sp} \end{bmatrix} = 2 \cdot K_p \cdot \text{sgn}(q_{w,err}) \cdot \begin{bmatrix} q_{x,err} \\\\ q_{y,err} \\\\ q_{z,err} \end{bmatrix}
@@ -240,19 +240,19 @@ $$
 \mathbf{e}_\omega = \begin{bmatrix} e_{\omega,x} \\\\ e_{\omega,y} \\\\ e_{\omega,z} \end{bmatrix} = \begin{bmatrix} \omega_{x,sp} - \omega_{x,meas} \\\\ \omega_{y,sp} - \omega_{y,meas} \\\\ \omega_{z,sp} - \omega_{z,meas} \end{bmatrix}
 $$
 
-The raw 3-axis control output $\mathbf{u}_{raw}$ combines Proportional, Integral, and Derivative terms:
+The raw 3-axis control output $`\mathbf{u}_{raw}`$ combines Proportional, Integral, and Derivative terms:
 
 $$
 \mathbf{u}_{raw} = \mathbf{K}_{P,rate} \mathbf{e}_\omega + \mathbf{K}_{I,rate} \int_0^t \mathbf{e}_\omega (\tau) d\tau - \mathbf{K}_{D,rate} \frac{d\boldsymbol{\omega}_{meas}}{dt}
 $$
 
-To compensate for varying dynamic pressure $q_{bar} = \frac{1}{2}\rho V^2$ across different airspeed regimes, control surface commands are scaled by dynamic pressure ratio:
+To compensate for varying dynamic pressure $`q_{bar} = \frac{1}{2}\rho V^2`$ across different airspeed regimes, control surface commands are scaled by dynamic pressure ratio:
 
 $$
 \mathbf{u}_{cmd} = \mathbf{u}_{raw} \cdot \left( \frac{V_0}{V} \right)^2
 $$
 
-where $V_0$ is nominal trim velocity ($30\text{ m/s}$) and $V$ is current true airspeed.
+where $`V_0`$ is nominal trim velocity ($30\text{ m/s}$) and $V$ is current true airspeed.
 
 Finally, commands pass through physical actuator saturation limits:
 
@@ -265,9 +265,9 @@ $$
 ### 2.6 Atmospheric Wind Turbulence & Dynamic Quaternion Disturbance Coupling
 
 #### 2.6.1 Dryden Wind Turbulence Model (MIL-F-8785C)
-The atmospheric wind disturbance vector in inertial space $\mathbf{V}_{wind,i} = [u_w, v_w, w_w]^T$ consists of continuous stochastic turbulence filtered from zero-mean Gaussian white noise combined with deterministic crosswind step gusts.
+The atmospheric wind disturbance vector in inertial space $`\mathbf{V}_{wind,i} = [u_w, v_w, w_w]^T`$ consists of continuous stochastic turbulence filtered from zero-mean Gaussian white noise combined with deterministic crosswind step gusts.
 
-According to military specification MIL-F-8785C / MIL-STD-1797A, the Power Spectral Density (PSD) functions for longitudinal ($u_w$), lateral ($v_w$), and vertical ($w_w$) linear turbulence components are modeled via linear shaping filters:
+According to military specification MIL-F-8785C / MIL-STD-1797A, the Power Spectral Density (PSD) functions for longitudinal ($`u_w`$), lateral ($`v_w`$), and vertical ($`w_w`$) linear turbulence components are modeled via linear shaping filters:
 
 $$
 \Phi_{u_w}(\Omega) = \sigma_u^2 \frac{2 L_u}{\pi} \frac{1}{1 + (L_u \Omega)^2}
@@ -281,9 +281,9 @@ $$
 \Phi_{w_w}(\Omega) = \sigma_w^2 \frac{L_w}{\pi} \frac{1 + 3(L_w \Omega)^2}{[1 + (L_w \Omega)^2]^2}
 $$
 
-where $\Omega = \frac{\omega}{V_{trim}}$ is the spatial frequency, $L_u, L_v, L_w$ are spatial turbulence scale lengths, and $\sigma_u, \sigma_v, \sigma_w$ are turbulence intensities.
+where $`\Omega = \frac{\omega}{V_{trim}}`$ is the spatial frequency, $`L_u, L_v, L_w`$ are spatial turbulence scale lengths, and $`\sigma_u, \sigma_v, \sigma_w`$ are turbulence intensities.
 
-In the time domain, the shaping filters transform white noise processes $\eta_u(t), \eta_v(t), \eta_w(t) \sim \mathcal{N}(0,1)$ into wind velocity differential equations:
+In the time domain, the shaping filters transform white noise processes $`\eta_u(t), \eta_v(t), \eta_w(t) \sim \mathcal{N}(0,1)`$ into wind velocity differential equations:
 
 $$
 \dot{u}_w = -\frac{V_{trim}}{L_u} u_w + \sigma_u \sqrt{\frac{2 V_{trim}}{\pi L_u}} \eta_u(t)
@@ -297,7 +297,7 @@ $$
 \dot{w}_w = -\frac{V_{trim}}{L_w} w_w + \sigma_w \sqrt{\frac{3 V_{trim}}{\pi L_w}} \eta_w(t)
 $$
 
-A deterministic crosswind step gust $v_{gust}$ ($15.0\text{ m/s}$ crosswind step at $t = t_{gust}$) is added to the lateral wind component:
+A deterministic crosswind step gust $`v_{gust}`$ ($15.0\text{ m/s}$ crosswind step at $`t = t_{gust}`$) is added to the lateral wind component:
 
 $$
 v_{wind,total}(t) = v_w(t) + v_{gust} \cdot H(t - t_{gust})
@@ -308,7 +308,7 @@ where $H(\cdot)$ is the Heaviside step function.
 ---
 
 #### 2.6.2 Transformation into Aircraft Body Frame via Quaternion Rotation Matrix
-The inertial wind vector $\mathbf{V}_{wind,i} = [u_{wind}, v_{wind}, w_{wind}]^T$ is rotated into the aircraft body frame using the transposed Direction Cosine Matrix $R(q)^T = R(\bar{q})$ computed directly from the current unit attitude quaternion $q = [q_w, q_x, q_y, q_z]^T$:
+The inertial wind vector $`\mathbf{V}_{wind,i} = [u_{wind}, v_{wind}, w_{wind}]^T`$ is rotated into the aircraft body frame using the transposed Direction Cosine Matrix $R(q)^T = R(\bar{q})$ computed directly from the current unit attitude quaternion $`q = [q_w, q_x, q_y, q_z]^T`$:
 
 $$
 \mathbf{V}_{wind,b} = R(q)^T \mathbf{V}_{wind,i}
@@ -322,13 +322,13 @@ q_w^2 + q_x^2 - q_y^2 - q_z^2 & 2(q_x q_y + q_w q_z) & 2(q_x q_z - q_w q_y) \\\\
 \end{bmatrix}
 $$
 
-The **true aerodynamic relative velocity vector** $\mathbf{V}_{rel,b} = [u_r, v_r, w_r]^T$ experienced by the aircraft control surfaces is:
+The **true aerodynamic relative velocity vector** $`\mathbf{V}_{rel,b} = [u_r, v_r, w_r]^T`$ experienced by the aircraft control surfaces is:
 
 $$
 \mathbf{V}_{rel,b} = \mathbf{V}_b - \mathbf{V}_{wind,b} = \mathbf{V}_b - R(q)^T \mathbf{V}_{wind,i}
 $$
 
-Total relative airspeed $V_{rel} = \|\mathbf{V}_{rel,b}\| = \sqrt{u_r^2 + v_r^2 + w_r^2}$, with instantaneous aerodynamic angle of attack $\alpha_{aero}$ and sideslip angle $\beta_{aero}$:
+Total relative airspeed $`V_{rel} = \|\mathbf{V}_{rel,b}\| = \sqrt{u_r^2 + v_r^2 + w_r^2}`$, with instantaneous aerodynamic angle of attack $`\alpha_{aero}`$ and sideslip angle $`\beta_{aero}`$:
 
 $$
 \alpha_{aero} = \arctan\left(\frac{w_r}{u_r}\right), \quad \beta_{aero} = \arcsin\left(\frac{v_r}{V_{rel}}\right)
@@ -337,7 +337,7 @@ $$
 ---
 
 #### 2.6.3 Disturbance Torques & 6-DOF Rigid-Body Kinetics Integration
-The wind turbulence induces external aerodynamic disturbance moments $\boldsymbol{\tau}_{dist} = [\tau_{dist,x}, \tau_{dist,y}, \tau_{dist,z}]^T$ acting at the center of pressure:
+The wind turbulence induces external aerodynamic disturbance moments $`\boldsymbol{\tau}_{dist} = [\tau_{dist,x}, \tau_{dist,y}, \tau_{dist,z}]^T`$ acting at the center of pressure:
 
 $$
 \boldsymbol{\tau}_{dist} = \frac{1}{2} \rho V_{rel}^2 S \begin{bmatrix}
@@ -347,18 +347,18 @@ b \, C_{n,\beta} \beta_{aero}
 \end{bmatrix} + \mathbf{r}_{cp} \times \mathbf{F}_{gust}
 $$
 
-The non-linear 6-DOF rotational kinetics of the aircraft under control moments $\boldsymbol{\tau}_{ctrl}$ and disturbance moments $\boldsymbol{\tau}_{dist}$ are governed by Euler's rigid-body dynamics equation:
+The non-linear 6-DOF rotational kinetics of the aircraft under control moments $`\boldsymbol{\tau}_{ctrl}`$ and disturbance moments $`\boldsymbol{\tau}_{dist}`$ are governed by Euler's rigid-body dynamics equation:
 
 $$
 J \dot{\boldsymbol{\omega}}_b + \boldsymbol{\omega}_b \times (J \boldsymbol{\omega}_b) = \boldsymbol{\tau}_{ctrl} + \boldsymbol{\tau}_{dist}
 $$
 
-where $J = \text{diag}(J_{xx}, J_{yy}, J_{zz})$ is the aircraft moment of inertia matrix and $\boldsymbol{\omega}_b = [p, q, r]^T$ is the body angular rate vector.
+where $`J = \text{diag}(J_{xx}, J_{yy}, J_{zz})`$ is the aircraft moment of inertia matrix and $`\boldsymbol{\omega}_b = [p, q, r]^T`$ is the body angular rate vector.
 
 ---
 
 #### 2.6.4 Quaternion Kinematic Rate Differential Equation
-The temporal evolution of the unit attitude quaternion $q(t)$ under body angular rates $\boldsymbol{\omega}_b(t)$ perturbed by atmospheric turbulence is propagated strictly through the non-singular quaternion kinematic differential equation:
+The temporal evolution of the unit attitude quaternion $q(t)$ under body angular rates $`\boldsymbol{\omega}_b(t)`$ perturbed by atmospheric turbulence is propagated strictly through the non-singular quaternion kinematic differential equation:
 
 $$
 \dot{q} = \frac{1}{2} q \otimes \boldsymbol{\omega}_b = \frac{1}{2} \begin{bmatrix} 
@@ -375,17 +375,17 @@ Because this differential equation operates directly in unit quaternion space $S
 
 ### Problem Scenario Setup
 
-An aircraft is flying in a **$90^\circ$ Knife-Edge Bank Turn** (measured attitude $q_{meas}$) and receives a setpoint command from the guidance computer to **pitch up by $30^\circ$** (setpoint attitude $q_{sp}$).
+An aircraft is flying in a **$90^\circ$ Knife-Edge Bank Turn** (measured attitude $`q_{meas}`$) and receives a setpoint command from the guidance computer to **pitch up by $30^\circ$** (setpoint attitude $`q_{sp}`$).
 
 #### Given System Parameters:
 
-1. **Measured Aircraft Attitude ($q_{meas}$):** Banked at $90^\circ$ roll ($\phi = 90^\circ, \theta = 0^\circ, \psi = 0^\circ$):
+1. **Measured Aircraft Attitude ($`q_{meas}`$):** Banked at $90^\circ$ roll ($\phi = 90^\circ, \theta = 0^\circ, \psi = 0^\circ$):
 
 $$
 q_{meas} = \begin{bmatrix} \cos(45^{\circ}) \\\\ \sin(45^{\circ}) \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.7071 \\\\ 0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix}
 $$
 
-2. **Target Setpoint Attitude ($q_{sp}$):** Pitching up by $30^{\circ}$ ($\phi = 0^{\circ}, \theta = 30^{\circ}, \psi = 0^{\circ}$):
+2. **Target Setpoint Attitude ($`q_{sp}`$):** Pitching up by $30^{\circ}$ ($\phi = 0^{\circ}, \theta = 30^{\circ}, \psi = 0^{\circ}$):
 
 $$
 q_{sp} = \begin{bmatrix} \cos(15^{\circ}) \\\\ 0.0000 \\\\ \sin(15^{\circ}) \\\\ 0.0000 \end{bmatrix} = \begin{bmatrix} 0.9659 \\\\ 0.0000 \\\\ 0.2588 \\\\ 0.0000 \end{bmatrix}
@@ -397,21 +397,21 @@ $$
 \boldsymbol{\omega}_{meas} = \begin{bmatrix} 0.0 \\\\ 0.0 \\\\ 0.0 \end{bmatrix} \text{ rad/s}
 $$
 
-4. **Current Airspeed:** $V = 30\text{ m/s}$(Trim airspeed $V_0 = 30\text{ m/s}$).
+4. **Current Airspeed:** $V = 30\text{ m/s}$(Trim airspeed $`V_0 = 30\text{ m/s}`$).
 
 5. **Autopilot Gains:**
- - **Outer Loop $Q_P$ Gain:** $K_p = 3.5$
-- **Inner Loop Roll Rate PID Gains:** $K_{P,rate} = 0.5$, $K_{I,rate} = 2.0$, $K_{D,rate} = 0.1$
+ - **Outer Loop $`Q_P`$ Gain:** $`K_p = 3.5`$
+- **Inner Loop Roll Rate PID Gains:** $`K_{P,rate} = 0.5`$, $`K_{I,rate} = 2.0`$, $`K_{D,rate} = 0.1`$
 - **Time Step:** $\Delta t = 0.01\text{ s}$
-- **Accumulated Past Roll Error:** $\sum (e_{\omega,x} \cdot \Delta t) = 0.05\text{ rad}$
+- **Accumulated Past Roll Error:** $`\sum (e_{\omega,x} \cdot \Delta t) = 0.05\text{ rad}`$
 
 ---
 
-### ─── OUTER LOOP ($Q_P$ CONTROLLER) ───
+### ─── OUTER LOOP ($`Q_P`$ CONTROLLER) ───
 
 #### STEP 1: Compute Measured Quaternion Conjugate
 
-Flip the imaginary vector signs of $q_{meas}$ to create the conjugate:
+Flip the imaginary vector signs of $`q_{meas}`$ to create the conjugate:
 
 $$
 \bar{q}_{meas} = \begin{bmatrix} 0.7071 \\\\ -0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix}
@@ -444,8 +444,8 @@ $$
 
 #### STEP 3: Shortest-Path Arc Check
 
-Check the scalar component $q_{w,err}$:
-- Since $q_{w,err} = 0.6830 \ge 0$, no sign inversion is needed!
+Check the scalar component $`q_{w,err}`$:
+- Since $`q_{w,err} = 0.6830 \ge 0`$, no sign inversion is needed!
 
 $$
 q_{err,short} = \begin{bmatrix} 0.6830 \\\\ -0.6830 \\\\ 0.1830 \\\\ -0.1830 \end{bmatrix}
@@ -453,25 +453,25 @@ $$
 
 #### STEP 4: Compute Outer Loop Target Spin Speeds
 
-Apply the $Q_P$ Master Control Formula with $K_p = 3.5$:
+Apply the $`Q_P`$ Master Control Formula with $`K_p = 3.5`$:
 
 $$
 \boldsymbol{\omega}_{sp} = 2 \cdot K_p \cdot \mathbf{q}_{v,err,short}
 $$
 
-- **Target Roll Spin Speed ($\omega_{x,sp}$):**
+- **Target Roll Spin Speed ($`\omega_{x,sp}`$):**
 
 $$
 \omega_{x,sp} = 2 \times 3.5 \times (-0.6830) = -4.7811\text{ rad/s } (-273.94^{\circ}/\text{s})
 $$
 
-- **Target Pitch Spin Speed ($\omega_{y,sp}$):**
+- **Target Pitch Spin Speed ($`\omega_{y,sp}`$):**
 
 $$
 \omega_{y,sp} = 2 \times 3.5 \times (+0.1830) = +1.2811\text{ rad/s } (+73.40^{\circ}/\text{s})
 $$
 
-- **Target Yaw Spin Speed ($\omega_{z,sp}$):**
+- **Target Yaw Spin Speed ($`\omega_{z,sp}`$):**
 
 $$
 \omega_{z,sp} = 2 \times 3.5 \times (-0.1830) = -1.2811\text{ rad/s } (-73.40^{\circ}/\text{s})
@@ -510,13 +510,13 @@ I = K_{I,rate} \times \sum (e_{\omega,x} \cdot \Delta t) = 2.0 \times (+0.05) = 
 $$
 
 3. **D Term (Braking Force):**
- Since current gyro speed $\omega_{x,meas} = 0.0$ and previous gyro speed is $0.0$:
+ Since current gyro speed $`\omega_{x,meas} = 0.0`$ and previous gyro speed is $0.0$:
 
 $$
 D = -K_{D,rate} \times \left( \frac{0.0 - 0.0}{0.01} \right) = 0.00000
 $$
 
-4. **Combine Raw PID Output ($u_{raw}$):**
+4. **Combine Raw PID Output ($`u_{raw}`$):**
 
 $$
 u_{raw} = P + I + D = -2.39055 + 0.10000 + 0.00000 = -2.29055
@@ -524,7 +524,7 @@ $$
 
 #### STEP 7: Apply Dynamic Airspeed Scaling & Output Flap Command
 
-To account for flight speed $V = 30\text{ m/s}$ and trim speed $V_0 = 30\text{ m/s}$:
+To account for flight speed $V = 30\text{ m/s}$ and trim speed $`V_0 = 30\text{ m/s}`$:
 
 $$
 \text{Speed Scale} = \left( \frac{V_0}{V} \right)^2 = \left( \frac{30}{30} \right)^2 = 1.0
@@ -547,7 +547,7 @@ $$
 
 ### 4.1 Quantitative Tracking RMSE Benchmark Table
 
-| Bank Angle Turn | Quaternion ($Q_P$) Roll / Pitch / Yaw RMSE | Euler PID Roll / Pitch / Yaw RMSE | Physical Evaluation |
+| Bank Angle Turn | Quaternion ($`Q_P`$) Roll / Pitch / Yaw RMSE | Euler PID Roll / Pitch / Yaw RMSE | Physical Evaluation |
 | :---: | :--- | :--- | :--- |
 | **30° Bank** | 1.43° / 0.26° / 3.08° | 1.43° / 1.55° / 2.70° | Both controllers track cleanly. |
 | **60° Bank** | 2.85° / 0.26° / 3.07° | 2.84° / 2.69° / 1.73° | Quaternion pitch error stays below 0.26°. |
@@ -582,17 +582,17 @@ python visual_drone_sim.py
 - **Dual 3D Aircraft Animation:** Renders 3D aircraft spatial attitude in real-time for both Quaternion (Cyan) and Euler (Neon Red) controllers side-by-side.
 - **Interactive Bank Controls:** Clickable buttons (`30° Turn`, `60° Turn`, `80° Turn`, `90° Knife-Edge`) to dynamically switch maneuvers live.
 - **Instant Reset & Speed Controls:** Reset button `[R]` and variable speed multipliers (`0.5x Slow-Mo`, `1.0x Realtime`, `2.0x Fast`).
-- **Live Telemetry Stream:** Displays real-time numerical readouts of quaternions ($q_w, q_x, q_y, q_z$), Euler angles ($\phi, \theta, \psi$), flap deflections ($\delta_A, \delta_H, \delta_V$), and flight status.
+- **Live Telemetry Stream:** Displays real-time numerical readouts of quaternions ($`q_w, q_x, q_y, q_z`$), Euler angles ($\phi, \theta, \psi$), flap deflections ($`\delta_A, \delta_H, \delta_V`$), and flight status.
 
 ---
 
 ### 4.4 Atmospheric Wind Turbulence & Crosswind Gust Rejection Benchmark
 
-To evaluate flight stability under realistic atmospheric disturbances, a **Dryden Wind Turbulence Model** (MIL-F-8785C / MIL-STD-1797A) integrated with a **$15\text{ m/s}$ crosswind step gust** ($v_{gust} = 15\text{ m/s}$ applied at $t = 8.0\text{s}$) was executed during an aggressive $80^\circ$ bank angle maneuver.
+To evaluate flight stability under realistic atmospheric disturbances, a **Dryden Wind Turbulence Model** (MIL-F-8785C / MIL-STD-1797A) integrated with a **$15\text{ m/s}$ crosswind step gust** ($`v_{gust} = 15\text{ m/s}`$ applied at $t = 8.0\text{s}$) was executed during an aggressive $80^\circ$ bank angle maneuver.
 
 #### Quantitative Gust Rejection Benchmark Table:
 
-| Metric / Parameter | Quaternion ($Q_P$) Controller | Classical Euler PID Controller | Performance Summary |
+| Metric / Parameter | Quaternion ($`Q_P`$) Controller | Classical Euler PID Controller | Performance Summary |
 | :--- | :---: | :---: | :--- |
 | **Pitch Error Peak during Gust** | **1.37°** | 11.08° | **8x reduction in transient pitch deviation** |
 | **Yaw Error Peak during Gust** | **4.61°** | 7.33° | Significant suppression of lateral sideslip |
