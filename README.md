@@ -465,33 +465,15 @@ The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft si
 
 ---
 
-### 4.3 Interactive Real-Time 3D Drone Simulator Application
-
-To visualize how the aircraft acts in real-time under Quaternion vs. Euler attitude control, an interactive desktop simulator is provided:
-
-```bash
-python visual_drone_sim.py
-```
-
-<p align="center">
-  <img src="figures/fig_realtime_simulation_dashboard.png" alt="Real-Time 3D Drone Simulation Dashboard" width="900"/>
-  <br>
-  <em>Figure 4.6: Real-Time 3D Aircraft Simulation Dashboard. Left: Side-by-side 3D spatial aircraft model views (Quaternion in Blue vs. Euler in Red). Middle: Live 2D tracking plots. Right: Live telemetry stream.</em>
-</p>
-
-#### Features of the Real-Time Simulator:
-- **Dual 3D Aircraft Animation:** Renders 3D aircraft spatial attitude in real-time for both Quaternion (Cyan) and Euler (Neon Red) controllers side-by-side.
-- **Interactive Bank Controls:** Clickable buttons (`30° Turn`, `60° Turn`, `80° Turn`, `90° Knife-Edge`) to dynamically switch maneuvers live.
-- **Instant Reset & Speed Controls:** Reset button `[R]` and variable speed multipliers (`0.5x Slow-Mo`, `1.0x Realtime`, `2.0x Fast`).
-- **Live Telemetry Stream:** Displays real-time numerical readouts of quaternions ($`q_w, q_x, q_y, q_z`$), Euler angles ($\phi, \theta, \psi$), flap deflections ($`\delta_A, \delta_H, \delta_V`$), and flight status.
-
----
-
 ## 5. Key Discussion & Comparative Findings
 
 1. **Low Bank Angles ($30^\circ - 60^\circ$):** Both controllers exhibit good tracking performance. Euler controllers perform adequately when roll angles are small and fixed-body approximations hold true.
 2. **High Bank Angles ($80^\circ - 90^\circ$):** The Euler controller experiences massive performance breakdown. At $90^\circ$ bank, the elevator acts physically as the rudder (controlling yaw) and the rudder acts as the elevator (controlling pitch). Because Euler controllers compute pitch error independently of roll angle, they command elevator deflection when pitch error occurs, accelerating yaw instead of pitch!
 3. **Quaternion Invariance:** The quaternion $`Q_P`$ controller inherently handles 3D spatial rotations. The pitch tracking error under quaternion control remains nearly constant ($0.26^\circ - 0.27^\circ$) across all bank angles from $30^\circ$ to $90^\circ$, proving total resistance to aerodynamic cross-coupling!
+
+---
+
+
 
 ---
 
