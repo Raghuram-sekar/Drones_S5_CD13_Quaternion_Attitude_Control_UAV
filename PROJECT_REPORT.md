@@ -257,7 +257,7 @@ where $`V_0`$ is nominal trim velocity ($30\text{ m/s}$) and $V$ is current true
 Finally, commands pass through physical actuator saturation limits:
 
 $$
-\delta_A = \text{clip}(u_{cmd,x}, -1.0, +1.0), \quad \delta_H = \text{clip}(u_{cmd,y}, -1.0, +1.0), \quad \delta_V = \text{clip}(u_{cmd,z}, -1.0, +1.0)
+\begin{bmatrix} \delta_A \\\\ \delta_H \\\\ \delta_V \end{bmatrix} = \begin{bmatrix} \text{clip}(u_{cmd,x}, -1.0, +1.0) \\\\ \text{clip}(u_{cmd,y}, -1.0, +1.0) \\\\ \text{clip}(u_{cmd,z}, -1.0, +1.0) \end{bmatrix}
 $$
 
 ---
@@ -313,7 +313,7 @@ $$
 Execute the Hamilton Product:
 
 $$
-q_{err} = \bar{q}_{meas} \otimes q_{sp} = [0.7071, -0.7071, 0.0000, 0.0000]^T \otimes [0.9659, 0.0000, 0.2588, 0.0000]^T
+q_{err} = \bar{q}_{meas} \otimes q_{sp} = \begin{bmatrix} 0.7071 \\\\ -0.7071 \\\\ 0.0000 \\\\ 0.0000 \end{bmatrix} \otimes \begin{bmatrix} 0.9659 \\\\ 0.0000 \\\\ 0.2588 \\\\ 0.0000 \end{bmatrix}
 $$
 
 Expanding the 4 components:
@@ -371,7 +371,7 @@ $$
 Resulting Target Angular Rate Vector:
 
 $$
-\boldsymbol{\omega}_{sp} = \begin{bmatrix} -4.7811 \\\\ +1.2811 \\\\ -1.2811 \end{bmatrix} \text{ rad/s} \quad \left( \approx [-273.94^{\circ}, +73.40^{\circ}, -73.40^{\circ}]^T / \text{s} \right)
+\boldsymbol{\omega}_{sp} = \begin{bmatrix} -4.7811 \\\\ +1.2811 \\\\ -1.2811 \end{bmatrix} \text{ rad/s} \quad \left( \begin{bmatrix} -273.94^{\circ} \\\\ +73.40^{\circ} \\\\ -73.40^{\circ} \end{bmatrix} / \text{s} \right)
 $$
 
 ---
@@ -381,6 +381,14 @@ $$
 Follow the **Roll Axis ($x$)** through the Inner Rate PID Controller:
 
 #### STEP 5: Calculate Roll Rate Error
+
+The full 3-axis angular rate error vector $`\mathbf{e}_\omega`$ is:
+
+$$
+\mathbf{e}_\omega = \begin{bmatrix} e_{\omega,x} \\\\ e_{\omega,y} \\\\ e_{\omega,z} \end{bmatrix} = \boldsymbol{\omega}_{sp} - \boldsymbol{\omega}_{meas} = \begin{bmatrix} -4.7811 \\\\ +1.2811 \\\\ -1.2811 \end{bmatrix} - \begin{bmatrix} 0.0 \\\\ 0.0 \\\\ 0.0 \end{bmatrix} = \begin{bmatrix} -4.7811 \\\\ +1.2811 \\\\ -1.2811 \end{bmatrix} \text{ rad/s}
+$$
+
+For the **Roll Axis ($x$)**:
 
 $$
 e_{\omega,x} = \omega_{x,sp} - \omega_{x,meas} = -4.7811 - 0.0 = -4.7811\text{ rad/s}
