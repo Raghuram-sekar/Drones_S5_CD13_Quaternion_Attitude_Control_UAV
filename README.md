@@ -481,7 +481,16 @@ The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft si
 
 ---
 
+## Data-Driven Controller Linearization and State-Space Modeling
 
+### Overview and Motivation
+Controller linearization is the process of approximating a complex, nonlinear control architecture as a Linear Time-Invariant (LTI) state-space model around a nominal equilibrium operating point, such as level hover[cite: 5]. While the cascaded Quaternion $Q_P$ attitude controller and inner angular rate PI-D loops operate globally in quaternion space to prevent kinematic singularities (gimbal lock) and naturally account for three-dimensional cross-axis coupling, deriving a linearized counterpart provides an essential analytical baseline. Specifically, linearizing the control law reduces real-time execution to deterministic matrix operations and allows for a direct empirical evaluation of how linear small-angle approximations degrade compared to full nonlinear quaternion control during aggressive, banked trajectories.
+
+---
+
+### Implementation Methodology
+
+To extract the linear state-space representation in the PyBullet environment without manual analytical differentiation, a data-driven numerical perturbation method using central finite differences was implemented. Treating the nonlinear quaternion controller as a black-box system at the hover equilibrium, small perturbations were systematically injected into the tracking error inputs and internal controller memory states (integrators and filtered derivative states) to compute the discrete-time state-space matrices and baseline hover motor trim. To maintain directional invariance across full 360-degree maneuvers, global trajectory errors were transformed into the aircraft's local heading-aligned frame at each simulation timestep and multiplied directly by the extracted state-space matrices to generate motor RPM commands, enabling a direct side-by-side comparison of attitude tracking angles and errors against the nonlinear controller
 
 ---
 
@@ -494,16 +503,8 @@ This project successfully designed, implemented, and validated a non-singular **
 - Automatic axis decoupling during steep bank ($80^\circ$) and knife-edge ($90^\circ$) flight maneuvers.
 - MATLAB Simulink 3D simulation
 - A **$10\times$ reduction in yaw tracking error** ($3.07^\circ$ vs $30.50^\circ$) during $90^\circ$ bank turns compared to classical Euler PID control.
-- 
+- Data driven Approach was used to model the proposed controller
 
-### Future Work for Final Evaluation
-- Extended and more intensive simulation
-- Data Driven approach and comparison with Euler and Quaternion based systems
-As instructed by faculty, for the final project evaluation we will expand our SITL simulation across all four targeted simulation environments:
- 1. `gym-pybullet-drones` (Reinforcement Learning & Multi-agent simulation)
- 2. `MuJoCo` (Physics-based multi-body dynamic simulation)
- 3. `Gazebo` (ROS-integrated full drone environment)
- 4. `ArduPilot` (Firmware SITL compilation & flight controller integration)
 
 ---
 
