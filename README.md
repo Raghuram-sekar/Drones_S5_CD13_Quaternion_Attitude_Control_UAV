@@ -82,7 +82,7 @@ Classical Euler PID controllers maintain 3 independent, decoupled control loops 
 
 ---
 
-#### ❌ Flaw 3: Computational Overhead of Transcendental Trigonometry
+####  Flaw 3: Computational Overhead of Transcendental Trigonometry
 
 Euler transformations require continuous evaluation of expensive transcendental trigonometric functions ($\sin, \cos, \tan, \sec, \arcsin, \arctan$) at every 100 Hz autopilot execution tick, introducing CPU computational latency on resource-constrained embedded microcontrollers.
 
