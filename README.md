@@ -184,7 +184,7 @@ $$
 ---
 
 ### 2.3 Shortest-Path Rotation & Axis-Angle Resolution
-Because $q$ and$-q$ represent identical physical 3D orientations (double covering of $SO(3)$ by $Sp(1)$), the controller must ensure rotation along the shorter arc ($\le 180^\circ$). The scalar component check is:
+Because $q$ and $-q$ represent identical physical 3D orientations (double covering of $SO(3)$ by $Sp(1)$ ), the controller must ensure rotation along the shorter arc ($\le 180^\circ$). The scalar component check is:
 
 $$
 q_{err,short} = \begin{cases} -q_{err} & \text{if } q_{w,err} < 0 \\\\ q_{err} & \text{if } q_{w,err} \ge 0 \end{cases}
