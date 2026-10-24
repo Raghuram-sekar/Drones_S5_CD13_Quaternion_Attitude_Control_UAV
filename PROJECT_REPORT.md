@@ -310,6 +310,12 @@ $$
 
 #### STEP 2: Compute Attitude Error Quaternion
 
+<p align="center">
+  <img src="figures/fig_attitude_error_resolution.jpg" alt="Quaternion Attitude Error Resolution (Current 90 Bank to Target 30 Pitch)" width="750"/>
+  <br>
+  <em>Figure 3.1: 3D Attitude Error Resolution ($q_{err} = \bar{q}_{meas} \otimes q_{sp}$) showing instantaneous spatial rotation axis linking current 90° knife-edge flight to commanded 30° pitch setpoint.</em>
+</p>
+
 Execute the Hamilton Product:
 
 $$
@@ -334,6 +340,12 @@ q_{err} = \begin{bmatrix} 0.6830 \\\\ -0.6830 \\\\ 0.1830 \\\\ -0.1830 \end{bmat
 $$
 
 #### STEP 3: Shortest-Path Arc Check
+
+<p align="center">
+  <img src="figures/fig_shortest_path_arc.jpg" alt="Quaternion Shortest Path Arc Check on Unit Sphere" width="750"/>
+  <br>
+  <em>Figure 3.2: Shortest-Path Geodesic Arc Check ($q$ vs $-q$). The scalar condition $q_{w,err} \ge 0$ enforces the direct green geodesic path ($\le 180^\circ$) over the wasteful red reverse loop ($> 180^\circ$).</em>
+</p>
 
 Check the scalar component $`q_{w,err}`$:
 - Since $`q_{w,err} = 0.6830 \ge 0`$, no sign inversion is needed!
@@ -412,6 +424,12 @@ $$
 ---
 
 ### ─── INNER LOOP (3-AXIS RATE PID CONTROLLER) ───
+
+<p align="center">
+  <img src="figures/fig_cascaded_control_pipeline.jpg" alt="Cascaded Outer QP to Inner Rate PID Process Pipeline" width="750"/>
+  <br>
+  <em>Figure 3.3: Cascaded Outer-Loop $Q_P$ to Inner-Loop Rate PID Signal Pipeline from Quaternion Error to Control Commands.</em>
+</p>
 
 Follow the **Roll Axis ($x$)** through the Inner Rate PID Controller:
 
