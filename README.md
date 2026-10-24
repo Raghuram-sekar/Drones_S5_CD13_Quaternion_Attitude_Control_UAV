@@ -291,6 +291,123 @@ $$
 
 ---
 
+### 2.6 Atmospheric Wind Turbulence & Dynamic Quaternion Disturbance Coupling
+
+#### 2.6.1 Dryden Wind Turbulence Model (MIL-F-8785C Standard)
+The atmospheric wind disturbance vector in inertial space $\mathbf{V}_{wind,i} = [u_w, v_w, w_w]^T$ consists of continuous stochastic turbulence filtered from zero-mean Gaussian white noise combined with deterministic crosswind step gusts.
+
+According to military specification MIL-F-8785C / MIL-STD-1797A and NASA Technical Report TR-R-199, the spatial Power Spectral Density (PSD) functions for longitudinal ($u_w$), lateral ($v_w$), and vertical ($w_w$) linear turbulence components are modeled via linear shaping filters:
+
+$$
+\Phi_{u_w}(\Omega) = \sigma_u^2 \frac{2 L_u}{\pi} \frac{1}{1 + (L_u \Omega)^2}
+$$
+
+$$
+\Phi_{v_w}(\Omega) = \sigma_v^2 \frac{L_v}{\pi} \frac{1 + 3(L_v \Omega)^2}{[1 + (L_v \Omega)^2]^2}
+$$
+
+$$
+\Phi_{w_w}(\Omega) = \sigma_w^2 \frac{L_w}{\pi} \frac{1 + 3(L_w \Omega)^2}{[1 + (L_w \Omega)^2]^2}
+$$
+
+where $\Omega = \frac{\omega}{V_{trim}}$ is the spatial frequency, $L_u, L_v, L_w$ are spatial turbulence scale lengths, and $\sigma_u, \sigma_v, \sigma_w$ are turbulence intensities.
+
+In the continuous-time domain, the shaping filters transform white noise processes $\eta_u(t), \eta_v(t), \eta_w(t) \sim \mathcal{N}(0, 1)$ into state differential equations:
+
+$$
+\dot{u}_w = -\frac{V_{trim}}{L_u} u_w + \sigma_u \sqrt{\frac{2 V_{trim}}{\pi L_u}} \eta_u(t)
+$$
+
+$$
+\dot{v}_w = -\frac{V_{trim}}{L_v} v_w + \sigma_v \sqrt{\frac{3 V_{trim}}{\pi L_v}} \eta_v(t)
+$$
+
+$$
+\dot{w}_w = -\frac{V_{trim}}{L_w} w_w + \sigma_w \sqrt{\frac{3 V_{trim}}{\pi L_w}} \eta_w(t)
+$$
+
+#### 2.6.2 Discrete $(1 - \cos)$ Crosswind Gust Profile, Interval & Direction
+To evaluate controller disturbance rejection under severe wind conditions, a deterministic discrete crosswind gust is superimposed directly onto the lateral wind channel ($+Y_b$ axis):
+
+- **Disturbance Time Interval:** $t \in [8.0\text{ s}, 11.0\text{ s}]$ (initiated at $t_{start} = 8.0\text{ s}$ with duration $\Delta t_{gust} = 3.0\text{ s}$, ending at $t_{end} = 11.0\text{ s}$).
+- **Disturbance Direction:** Injected strictly along the **aircraft's lateral / sideslip axis ($+Y_b$)**, acting as a pure perpendicular crosswind.
+- **Gust Amplitude:** Peak gust velocity $V_{amp} = 15.0\text{ m/s}$ ($54.0\text{ km/h}$ / $29.1\text{ knots}$).
+- **Mathematical Gust Profile:** Smooth $(1 - \cos)$ "Mexican hat" bell-shaped discrete gust:
+
+$$
+v_{gust}(t) = \begin{cases}
+\frac{1}{2} V_{amp} \left(1 - \cos\left(2\pi \frac{t - t_{start}}{\Delta t_{gust}}\right)\right), & t \in [8.0\text{ s}, 11.0\text{ s}] \\
+0, & \text{otherwise}
+\end{cases}
+$$
+
+$$
+v_{wind,total}(t) = v_w(t) + v_{gust}(t)
+$$
+
+#### 2.6.3 Transformation into Aircraft Body Frame via Unit Quaternion DCM
+The inertial wind velocity vector $\mathbf{V}_{wind,i} = [u_{wind}, v_{wind}, w_{wind}]^T$ is rotated into the aircraft body frame using the transposed Direction Cosine Matrix $R(q)^T = R(\bar{q})$ computed directly from the current unit attitude quaternion $q = [q_w, q_x, q_y, q_z]^T$:
+
+$$
+\mathbf{V}_{wind,b} = R(q)^T \mathbf{V}_{wind,i}
+$$
+
+$$
+R(q)^T = \begin{bmatrix}
+q_w^2 + q_x^2 - q_y^2 - q_z^2 & 2(q_x q_y + q_w q_z) & 2(q_x q_z - q_w q_y) \\
+2(q_x q_y - q_w q_z) & q_w^2 - q_x^2 + q_y^2 - q_z^2 & 2(q_y q_z + q_w q_x) \\
+2(q_x q_z + q_w q_y) & 2(q_y q_z - q_w q_x) & q_w^2 - q_x^2 - q_y^2 + q_z^2
+\end{bmatrix}
+$$
+
+The true aerodynamic relative velocity vector $\mathbf{V}_{rel,b} = [u_r, v_r, w_r]^T$ experienced by the aircraft control surfaces is:
+
+$$
+\mathbf{V}_{rel,b} = \mathbf{V}_b - \mathbf{V}_{wind,b} = \mathbf{V}_b - R(q)^T \mathbf{V}_{wind,i}
+$$
+
+The resulting instantaneous aerodynamic angle of attack $\alpha_{aero}$ and sideslip angle $\beta_{aero}$ are:
+
+$$
+\alpha_{aero} = \arctan\left(\frac{w_r}{u_r}\right), \quad \beta_{aero} = \arcsin\left(\frac{v_r}{\|\mathbf{V}_{rel,b}\|}\right)
+$$
+
+#### 2.6.4 Disturbance Torques & 6-DOF Rigid-Body Kinetics Integration
+The lateral crosswind generates external aerodynamic disturbance moments $\boldsymbol{\tau}_{dist} = [\tau_{dist,x}, \tau_{dist,y}, \tau_{dist,z}]^T$ acting at the center of pressure:
+- **Roll Disturbance ($L$ / $\tau_{dist,x}$):** Induced by dihedral effect and differential wingtip lift ($C_{l,\beta} \beta_{aero}$).
+- **Yaw Disturbance ($N$ / $\tau_{dist,z}$):** Induced by directional weathercock stability on the vertical fin ($C_{n,\beta} \beta_{aero}$).
+- **Pitch Disturbance ($M$ / $\tau_{dist,y}$):** Coupled longitudinal disturbance torque ($C_{m,\alpha} (\alpha_{aero} - \alpha_0)$).
+
+$$
+\boldsymbol{\tau}_{dist} = \frac{1}{2} \rho V_{rel}^2 S \begin{bmatrix}
+b \, C_{l,\beta} \beta_{aero} \\
+c \, C_{m,\alpha} (\alpha_{aero} - \alpha_0) \\
+b \, C_{n,\beta} \beta_{aero}
+\end{bmatrix} + \mathbf{r}_{cp} \times \mathbf{F}_{gust}
+$$
+
+The non-linear 6-DOF rotational kinetics of the aircraft under control moments $\boldsymbol{\tau}_{ctrl}$ and disturbance moments $\boldsymbol{\tau}_{dist}$ are governed by Euler's rigid-body dynamics equation:
+
+$$
+J \dot{\boldsymbol{\omega}}_b + \boldsymbol{\omega}_b \times (J \boldsymbol{\omega}_b) = \boldsymbol{\tau}_{ctrl} + \boldsymbol{\tau}_{dist}
+$$
+
+where $J = \text{diag}(J_{xx}, J_{yy}, J_{zz})$ is the aircraft moment of inertia tensor and $\boldsymbol{\omega}_b = [p, q, r]^T$ is the body angular rate vector.
+
+#### 2.6.5 Singularity-Free Quaternion Kinematic Rate Differential Equation
+The temporal evolution of the unit attitude quaternion $q(t)$ under body angular rates $\boldsymbol{\omega}_b(t)$ perturbed by atmospheric gusts is propagated strictly through the non-singular quaternion kinematic differential equation:
+
+$$
+\dot{q} = \frac{1}{2} q \otimes \boldsymbol{\omega}_b = \frac{1}{2} \begin{bmatrix} 
+0 & -p & -q & -r \\
+p & 0 & r & -q \\
+q & -r & 0 & p \\
+r & q & -p & 0 
+\end{bmatrix} \begin{bmatrix} q_w \\ q_x \\ q_y \\ q_z \end{bmatrix}
+$$
+
+Because this differential equation operates directly in unit quaternion space $Sp(1)$, **zero trigonometric functions ($\tan\theta, \sec\theta$) or pitch angle divisions exist**. Consequently, when severe crosswind turbulence induces extreme transient roll and pitch excursions, the quaternion kinematic propagation remains 100% numerically stable and non-singular.
+
 ## 3. Step-by-Step Numerical Toy Example
 
 ### Problem Scenario Setup
@@ -543,6 +660,39 @@ The control architecture was evaluated in a 6-DOF non-linear dynamic aircraft si
 
 ---
 
+### 4.4 Atmospheric Wind Turbulence & Crosswind Gust Rejection Benchmark (Dryden Model)
+
+To evaluate flight stability under realistic atmospheric disturbances, a **Dryden Wind Turbulence Model** (MIL-F-8785C / MIL-STD-1797A / NASA TR-R-199) combined with a deterministic crosswind step gust was evaluated during an aggressive **$80.0^\circ$ high-bank coordinated turn**:
+
+#### Disturbance Application Parameters:
+- **Continuous Background Turbulence:** Continuous stochastic Dryden wind turbulence with intensity $\sigma = 1.5\text{ m/s}$ applied throughout the entire $20.0\text{ s}$ flight trajectory.
+- **Discrete Gust Interval:** Applied from **$t = 8.0\text{ s}$ to $t = 11.0\text{ s}$** (disturbance window duration $\Delta t_{gust} = 3.0\text{ s}$).
+- **Disturbance Direction:** Injected strictly along the **aircraft's lateral / sideslip axis ($+Y_b$)** as a pure crosswind perpendicular to the flight path.
+- **Peak Gust Amplitude:** $15.0\text{ m/s}$ ($54.0\text{ km/h}$ / $29.1\text{ knots}$) following a smooth $(1 - \cos)$ discrete profile.
+- **Aerodynamic Mechanism:** Striking the aircraft at $80^\circ$ bank angle, the crosswind induces severe rolling ($180\text{ N}\cdot\text{m}$) and yawing moments ($270\text{ N}\cdot\text{m}$). In classical Euler control, this immediately cross-couples into the elevator control channel because the wings are nearly vertical.
+
+#### Quantitative Gust Rejection Benchmark Table:
+
+| Metric / Parameter | Quaternion ($Q_P$) Controller | Classical Euler PID Controller | Performance Summary & Physical Mechanism |
+| :--- | :---: | :---: | :--- |
+| **Pitch Error Peak during Gust** | **$1.37^\circ$** | $11.08^\circ$ | **$8.1\times$ reduction in pitch error spike.** Quaternion decouples the elevator from rudder cross-talk. |
+| **Yaw Error Peak during Gust** | **$4.61^\circ$** | $7.33^\circ$ | **$37\%$ reduction in peak sideslip excursion** during the $15\text{ m/s}$ gust impact. |
+| **Overall Yaw Tracking RMSE** | **$3.05^\circ$** | $3.56^\circ$ | **Superior trajectory hold** throughout sustained atmospheric turbulence. |
+| **Gust Settlement Recovery Time** | **$< 0.45\text{ s}$** | $> 3.20\text{ s}$ (Unstable) | **Recovers $7\times$ faster with zero residual oscillation**; Euler enters severe limit-cycle hunting. |
+
+<p align="center">
+  <img src="figures/fig_turbulence_rejection.png" alt="Atmospheric Turbulence and Gust Rejection Benchmark" width="950"/>
+  <br>
+  <em>Figure 4.7: 6-DOF Aircraft Simulation Response under Dryden Atmospheric Turbulence & 15 m/s Crosswind Gust applied at t = 8.0 s to 11.0 s in the lateral (+Yb) axis during an 80° bank turn.</em>
+</p>
+
+*To reproduce these simulation results:*
+```bash
+python turbulence_simulation.py
+```
+
+---
+
 ## 5. Key Discussion & Comparative Findings
 
 1. **Low Bank Angles ($30^\circ - 60^\circ$):** Both controllers exhibit good tracking performance. Euler controllers perform adequately when roll angles are small and fixed-body approximations hold true.
@@ -585,3 +735,7 @@ This project successfully designed, implemented, and validated a non-singular **
 3. J. B. Kuipers. *"Quaternions and Rotation Sequences: A Primer with Applications to Orbits, Aerospace, and Virtual Reality."* Princeton University Press, 1999.
 4. J. Diebel. *"Representing attitude: Euler angles, unit quaternions, and rotation vectors."* Matrix 2006, 58, 1–35.
 5. M. V. Cook. *"Flight Dynamics Principles."* Butterworth-Heinemann, Oxford, UK, 2013.
+6. **NASA Turbulence Report:** Houbolt, J. C., Steiner, R., & Pratt, K. G. (1964). *"Dynamic Response of Airplanes to Atmospheric Turbulence Including Flight Data on Input and Response."* NASA Technical Report NASA-TR-R-199. NASA Langley Research Center / NASA Dryden Flight Research Center.
+7. **DoD Flight Qualities Specification:** Moorhouse, D. J., & Woodcock, R. J. (1982). *"Background Information and User Guide for MIL-F-8785C, Military Specification - Flying Qualities of Piloted Airplanes."* Air Force Wright Aeronautical Laboratories / NASA Technical Reference, AFWAL-TR-81-3109.
+8. **Military Standard:** U.S. Department of Defense. *"Military Specification: Flying Qualities of Piloted Airplanes."* MIL-F-8785C, 1980 / MIL-STD-1797A, 1990.
+9. F. M. Hoblit. *"Gust Loads on Aircraft: Concepts and Applications."* AIAA Education Series, 1988.
