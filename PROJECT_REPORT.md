@@ -244,9 +244,9 @@ $$
 $$
 
 <p align="center">
-  <img src="figures/fig_outer_loop_qp_controller.jpg" alt="Outer Loop Quaternion Proportional QP Attitude Controller" width="850"/>
+  <img src="figures/fig_outer_loop_qp_controller.jpg" alt="Closed-Loop Outer Quaternion Proportional QP Attitude Controller Architecture" width="950"/>
   <br>
-  <em>Figure 2.4: Outer-Loop Quaternion Proportional ($Q_P$) Controller converting orientation error into target body spin speeds ($p_{cmd}, q_{cmd}, r_{cmd}$).</em>
+  <em>Figure 2.4: Closed-Loop Outer-Loop Quaternion Proportional ($Q_P$) Attitude Controller Architecture. Illustrates target attitude setpoint ($`\mathbf{q}_{sp}`$), quaternion error resolution ($`\mathbf{q}_{err} = \mathbf{q}_{meas}^{-1} \otimes \mathbf{q}_{sp}`$), shortest-path geodesic arc enforcement ($`\text{sgn}(q_{w,err})`$), proportional body spin rate calculation ($`\boldsymbol{\omega}_{sp} = 2 \cdot \mathbf{K}_p \cdot \mathbf{q}_{v,err}`$), rate saturation limiter, commanded 3D body rate execution ($`p_{cmd}, q_{cmd}, r_{cmd}`$) on the physical UAV, and continuous closed-loop attitude feedback from the onboard AHRS / EKF2 state estimator.</em>
 </p>
 
 ---
