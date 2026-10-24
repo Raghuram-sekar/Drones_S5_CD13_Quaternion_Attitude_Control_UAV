@@ -344,29 +344,35 @@ $$
 
 #### STEP 4: Compute Outer Loop Target Spin Speeds
 
-**Derivation of the Target Angular Velocity Formula ($`\boldsymbol{\omega}_{sp}`$):**
+**Derivation of Target Angular Velocity Formula ($`\boldsymbol{\omega}_{sp}`$):**
+
+How do we convert quaternion error ($`q_{err}`$) into target angular velocity ($`\boldsymbol{\omega}_{sp}`$)?
 
 **1. Kinematic Relationship:**
-The time derivative of an attitude quaternion is related to body angular velocity $`\boldsymbol{\omega}`$ by:
+Drone angular velocity $`\boldsymbol{\omega}`$ is related to quaternion rate $`\dot{q}`$ by:
 
 $$
-\dot{q} = \frac{1}{2} q \otimes \begin{bmatrix} 0 \\\\ \boldsymbol{\omega} \end{bmatrix} \implies \begin{bmatrix} 0 \\\\ \boldsymbol{\omega} \end{bmatrix} = 2 \, \bar{q} \otimes \dot{q}
+\dot{q} = \frac{1}{2} q \otimes \begin{bmatrix} 0 \\\\ \boldsymbol{\omega} \end{bmatrix} \implies \begin{bmatrix} 0 \\\\ \boldsymbol{\omega} \end{bmatrix} = 2 \cdot \bar{q} \otimes \dot{q}
 $$
 
-**2. Proportional Error Dynamics:**
-To drive orientation error toward zero, we enforce first-order proportional convergence $\dot{q}_{err} = K_p \cdot q_{err}$. Since the scalar part represents alignment magnitude ($q_{w,err} \approx 1$), the required rate of change of orientation is governed by its imaginary vector part $\mathbf{q}_{v,err} = [q_x, q_y, q_z]^T$.
-
-**3. Origin of the Factor of $2$ (Half-Angle Geometry):**
-In unit quaternions, rotations are parameterized using half-angles:
+**2. Proportional Error Decay:**
+To eliminate attitude error with gain $`K_p`$, we require proportional error reduction:
 
 $$
-q = \begin{bmatrix} \cos(\theta / 2) \\\\ \mathbf{n} \sin(\theta / 2) \end{bmatrix} \implies \mathbf{q}_v \approx \frac{\theta}{2} \mathbf{n} \quad (\text{for small angles})
+\dot{q}_{err} = K_p \cdot q_{err}
 $$
 
-Because the vector component $\mathbf{q}_v$ contains only *half* the physical rotation angle ($\theta / 2$), multiplying by $2$ recovers the true physical rotation displacement ($2 \times \frac{\theta}{2} = \theta$).
+**3. Why Multiply by 2? (Half-Angle Property):**
+Quaternions represent rotations using half-angles:
 
-**4. Master $Q_P$ Outer-Loop Law:**
-Combining the factor of $2$, proportional gain $K_p$, and shortest-arc vector error yields:
+$$
+q = \begin{bmatrix} \cos(\theta / 2) \\\\ \mathbf{n} \sin(\theta / 2) \end{bmatrix} \implies \mathbf{q}_v \approx \frac{\theta}{2} \mathbf{n}
+$$
+
+Since the vector error $`\mathbf{q}_v`$ holds only **half** the rotation angle ($`\theta / 2`$), multiplying by **2** recovers the full rotation speed ($`2 \times \frac{\theta}{2} = \theta`$).
+
+**4. Final Master Outer-Loop Law:**
+Taking the 3D imaginary vector error $`\mathbf{q}_{v,err} = [q_{x,err}, q_{y,err}, q_{z,err}]^T`$:
 
 $$
 \boldsymbol{\omega}_{sp} = 2 \cdot K_p \cdot \mathbf{q}_{v,err,short} = 2 \cdot K_p \cdot \begin{bmatrix} q_{x,err,short} \\\\ q_{y,err,short} \\\\ q_{z,err,short} \end{bmatrix}
