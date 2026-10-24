@@ -236,6 +236,12 @@ $$
 \begin{bmatrix} \omega_{x,sp} \\\\ \omega_{y,sp} \\\\ \omega_{z,sp} \end{bmatrix} = 2 \cdot K_p \cdot \text{sgn}(q_{w,err}) \cdot \begin{bmatrix} q_{x,err} \\\\ q_{y,err} \\\\ q_{z,err} \end{bmatrix}
 $$
 
+<p align="center">
+  <img src="figures/fig_outer_loop_qp_controller.jpg" alt="Outer Loop Quaternion Proportional QP Attitude Controller" width="850"/>
+  <br>
+  <em>Figure 2.4: Outer-Loop Quaternion Proportional ($Q_P$) Controller converting orientation error into target body spin speeds ($p_{cmd}, q_{cmd}, r_{cmd}$).</em>
+</p>
+
 ---
 
 ### 2.5 Inner-Loop Rate PID & Aerodynamic Airspeed Scaling
@@ -272,13 +278,13 @@ $$
 <p align="center">
   <img src="figures/fig_inner_loop_pid_actuators.jpg" alt="Inner Loop Angular Rate PID Controller Actuating Flight Control Surfaces" width="850"/>
   <br>
-  <em>Figure 2.4: Inner-Loop 3-Axis Rate PID Controller actuating flight control surfaces across three axes.</em>
+  <em>Figure 2.5: Inner-Loop 3-Axis Rate PID Controller actuating flight control surfaces across three axes.</em>
 </p>
 
 <p align="center">
   <img src="figures/fig_pid_3axis_telemetry_breakdown.jpg" alt="Rate PID Influence Across Three Physical Flight Axes" width="850"/>
   <br>
-  <em>Figure 2.5: Rate PID influence and surface deflection breakdown across Roll (X), Pitch (Y), and Yaw (Z) axes.</em>
+  <em>Figure 2.6: Rate PID influence and surface deflection breakdown across Roll (X), Pitch (Y), and Yaw (Z) axes.</em>
 </p>
 
 
