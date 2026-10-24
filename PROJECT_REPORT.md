@@ -426,7 +426,7 @@ $$
 ### ─── INNER LOOP (3-AXIS RATE PID CONTROLLER) ───
 
 <p align="center">
-  <img src="figures/fig_inner_loop_pid_actuators.jpg" alt="Cascaded Outer QP to Inner Rate PID Process Pipeline" width="750"/>
+  <img src="figures/fig_pid_actuator_moments.jpg" alt="Cascaded Outer QP to Inner Rate PID Process Pipeline" width="750"/>
   <br>
   <em>Figure 3.3: Cascaded Outer-Loop $Q_P$ to Inner-Loop Rate PID Signal Pipeline from Quaternion Error to Control Commands.</em>
 </p>
