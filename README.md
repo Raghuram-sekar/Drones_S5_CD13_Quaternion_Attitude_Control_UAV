@@ -172,8 +172,12 @@ q_{err} = \bar{q}_{meas} \otimes q_{sp}
 $$
 
 <p align="center">
-<img width="2318" height="1536" alt="image" src="https://github.com/user-attachments/assets/6ac57291-5979-421b-962f-b701b3d6b262" />
+  <img src="figures/fig_attitude_error_3d_spatial.jpg" alt="Quaternion Attitude Error Resolution (Current 90 Bank to Target 30 Pitch)" width="850"/>
+  <br>
+  <em>Figure 2.2: 3D Spatial Attitude Error Resolution ($q_{err} = \bar{q}_{meas} \otimes q_{sp}$) showing instantaneous rotation axis linking current 90° knife-edge flight to commanded 30° pitch setpoint.</em>
 </p>
+
+
 
 Expanding component-wise:
 
@@ -193,9 +197,13 @@ Because $q$ and $-q$ represent identical physical 3D orientations (double coveri
 $$
 q_{err,short} = \begin{cases} -q_{err} & \text{if } q_{w,err} < 0 \\\\ q_{err} & \text{if } q_{w,err} \ge 0 \end{cases}
 $$
+
 <p align="center">
-<img width="937" height="497" alt="Screenshot 2026-10-24 121532" src="https://github.com/user-attachments/assets/a1fb0329-c144-4c54-8dab-bf36b5db9057" />
+  <img src="figures/fig_shortest_path_drone_tilt.jpg" alt="Quaternion Shortest-Path Drone Tilt Comparison (q vs -q)" width="850"/>
+  <br>
+  <em>Figure 2.3: Shortest-Path Geodesic Arc Check ($q$ vs $-q$). The scalar condition $q_{w,err} \ge 0$ enforces the direct green geodesic path ($\le 180^\circ$) over the wasteful red reverse loop ($> 180^\circ$).</em>
 </p>
+
 
 In terms of physical axis-angle representation $(\mathbf{e}, \alpha)$:
 
@@ -261,6 +269,20 @@ $$
 \begin{bmatrix} \delta_A \\\\ \delta_H \\\\ \delta_V \end{bmatrix} = \begin{bmatrix} \text{clip}(u_{cmd,x}, -1.0, +1.0) \\\\ \text{clip}(u_{cmd,y}, -1.0, +1.0) \\\\ \text{clip}(u_{cmd,z}, -1.0, +1.0) \end{bmatrix}
 $$
 
+<p align="center">
+  <img src="figures/fig_inner_loop_pid_actuators.jpg" alt="Inner Loop Angular Rate PID Controller Actuating Flight Control Surfaces" width="850"/>
+  <br>
+  <em>Figure 2.4: Inner-Loop 3-Axis Rate PID Controller actuating flight control surfaces across three axes.</em>
+</p>
+
+<p align="center">
+  <img src="figures/fig_pid_3axis_telemetry_breakdown.jpg" alt="Rate PID Influence Across Three Physical Flight Axes" width="850"/>
+  <br>
+  <em>Figure 2.5: Rate PID influence and surface deflection breakdown across Roll (X), Pitch (Y), and Yaw (Z) axes.</em>
+</p>
+
+
+
 ---
 
 ## 3. Step-by-Step Numerical Toy Example
@@ -311,12 +333,6 @@ $$
 
 #### STEP 2: Compute Attitude Error Quaternion
 
-<p align="center">
-  <img src="figures/fig_attitude_error_3d_spatial.jpg" alt="Quaternion Attitude Error Resolution (Current 90 Bank to Target 30 Pitch)" width="750"/>
-  <br>
-  <em>Figure 3.1: 3D Attitude Error Resolution ($q_{err} = \bar{q}_{meas} \otimes q_{sp}$) showing instantaneous spatial rotation axis linking current 90° knife-edge flight to commanded 30° pitch setpoint.</em>
-</p>
-
 Execute the Hamilton Product:
 
 $$
@@ -341,12 +357,6 @@ q_{err} = \begin{bmatrix} 0.6830 \\\\ -0.6830 \\\\ 0.1830 \\\\ -0.1830 \end{bmat
 $$
 
 #### STEP 3: Shortest-Path Arc Check
-
-<p align="center">
-  <img src="figures/fig_shortest_path_drone_tilt.jpg" alt="Quaternion Shortest Path Arc Check on Unit Sphere" width="750"/>
-  <br>
-  <em>Figure 3.2: Shortest-Path Geodesic Arc Check ($q$ vs $-q$). The scalar condition $q_{w,err} \ge 0$ enforces the direct green geodesic path ($\le 180^\circ$) over the wasteful red reverse loop ($> 180^\circ$).</em>
-</p>
 
 Check the scalar component $`q_{w,err}`$:
 - Since $`q_{w,err} = 0.6830 \ge 0`$, no sign inversion is needed!
@@ -425,18 +435,6 @@ $$
 ---
 
 ### ─── INNER LOOP (3-AXIS RATE PID CONTROLLER) ───
-
-<p align="center">
-  <img src="figures/fig_inner_loop_pid_actuators.jpg" alt="Inner Loop Angular Rate PID Controller Actuating Flight Control Surfaces" width="750"/>
-  <br>
-  <em>Figure 3.3: Inner-Loop 3-Axis Rate PID Controller actuating flight control surfaces on an autonomous fixed-wing UAV across three axes.</em>
-</p>
-
-<p align="center">
-  <img src="figures/fig_pid_3axis_telemetry_breakdown.jpg" alt="Rate PID Influence Across Three Physical Flight Axes" width="750"/>
-  <br>
-  <em>Figure 3.4: Rate PID influence and surface deflection breakdown across Roll (X), Pitch (Y), and Yaw (Z) axes.</em>
-</p>
 
 Follow the **Roll Axis ($x$)** through the Inner Rate PID Controller:
 
