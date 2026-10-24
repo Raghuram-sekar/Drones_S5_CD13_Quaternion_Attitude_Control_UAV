@@ -99,7 +99,7 @@ Euler transformations require continuous evaluation of expensive transcendental 
 To overcome all 3 limitations, this project implements a non-singular **Quaternion Proportional ($`Q_P`$) Attitude Controller** based on the formulation by Michał Gołąbek et al. (MDPI Electronics 2022).
 
 #### 🛡️ How Quaternions Eliminate Every Flaw:
-1. **Four-Component Hyper-Complex Representation:** Quaternions parameterize 3D rotation using 4 scalar values ($`q = [q_w, q_x, q_y, q_z]^T`$) constrained to a 4D unit hypersphere (group $Sp(1) \cong SO(3)$). Because 4 parameters represent 3 rotational degrees of freedom, there are **no division operations** and **zero singularities (No Gimbal Lock)** at any pitch angle.
+1. **Four-Component Hyper-Complex Representation:** Quaternions parameterize 3D rotation using 4 scalar values ($`q = [q_w, q_x, q_y, q_z]^T`$) constrained to a 4D unit hypersphere (group $`Sp(1) \cong SO(3)`$). Because 4 parameters represent 3 rotational degrees of freedom, there are **no division operations** and **zero singularities (No Gimbal Lock)** at any pitch angle.
 2. **Unified 3D Spatial Geometry:** The $`Q_P`$ controller computes rotation error as a single 3D vector in body space. At $80^\circ - 90^\circ$ bank angles, it automatically routes control signals to the correct physical surfaces (Rudder for pitch, Elevator for yaw) without requiring gain scheduling.
 3. **Pure Algebraic Computation:** Quaternion attitude kinematics rely exclusively on vector cross products, dot products, and scalar multiplications (Hamilton Product)—completely eliminating transcendental trigonometric function calls during flight control loops.
 
@@ -122,7 +122,7 @@ $$
 
 where $`q_w \in \mathbb{R}`$ is the scalar part and $`\mathbf{q}_v = [q_x, q_y, q_z]^T \in \mathbb{R}^3`$ is the vector imaginary part.
 
-Unit quaternions satisfy the unit norm constraint $`\|q\| = \sqrt{q_w^2 + q_x^2 + q_y^2 + q_z^2} = 1`$, forming the group $Sp(1) \cong SO(3)$.
+Unit quaternions satisfy the unit norm constraint $`\|q\| = \sqrt{q_w^2 + q_x^2 + q_y^2 + q_z^2} = 1`$, forming the group $`Sp(1) \cong SO(3)`$.
 
 The **Quaternion Conjugate** $\bar{q}$ and **Inverse**$q^{-1}$(for unit quaternions) are defined as:
 
