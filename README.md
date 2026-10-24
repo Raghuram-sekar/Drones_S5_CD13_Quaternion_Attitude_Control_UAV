@@ -427,9 +427,15 @@ $$
 ### ─── INNER LOOP (3-AXIS RATE PID CONTROLLER) ───
 
 <p align="center">
-  <img src="figures/fig_pid_actuator_moments.jpg" alt="Cascaded Outer QP to Inner Rate PID Process Pipeline" width="750"/>
+  <img src="figures/fig_inner_loop_pid_actuators.jpg" alt="Inner Loop Angular Rate PID Controller Actuating Flight Control Surfaces" width="750"/>
   <br>
-  <em>Figure 3.3: Cascaded Outer-Loop $Q_P$ to Inner-Loop Rate PID Signal Pipeline from Quaternion Error to Control Commands.</em>
+  <em>Figure 3.3: Inner-Loop 3-Axis Rate PID Controller actuating flight control surfaces on an autonomous fixed-wing UAV across three axes.</em>
+</p>
+
+<p align="center">
+  <img src="figures/fig_pid_3axis_telemetry_breakdown.jpg" alt="Rate PID Influence Across Three Physical Flight Axes" width="750"/>
+  <br>
+  <em>Figure 3.4: Rate PID influence and surface deflection breakdown across Roll (X), Pitch (Y), and Yaw (Z) axes.</em>
 </p>
 
 Follow the **Roll Axis ($x$)** through the Inner Rate PID Controller:
