@@ -347,33 +347,34 @@ $$
 
 **Derivation of Target Angular Velocity Formula ($`\boldsymbol{\omega}_{sp}`$):**
 
-How do we convert quaternion error ($`q_{err}`$) into target angular velocity ($`\boldsymbol{\omega}_{sp}`$)?
+How do we convert quaternion attitude error into angular velocity command $`\boldsymbol{\omega}_{sp}`$?
 
-**1. Kinematic Relationship:**
-Drone angular velocity $`\boldsymbol{\omega}`$ is related to quaternion rate $`\dot{q}`$ by:
-
-$$
-\dot{q} = \frac{1}{2} q \otimes \begin{bmatrix} 0 \\\\ \boldsymbol{\omega} \end{bmatrix} \implies \begin{bmatrix} 0 \\\\ \boldsymbol{\omega} \end{bmatrix} = 2 \cdot \bar{q} \otimes \dot{q}
-$$
-
-**2. Proportional Error Decay:**
-To eliminate attitude error with gain $`K_p`$, we require proportional error reduction:
+**Step 1: Invert Quaternion Kinematics**  
+The kinematic differential equation relating angular velocity $`\boldsymbol{\omega}`$ to quaternion rate $`\dot{q}`$ is:
 
 $$
-\dot{q}_{err} = K_p \cdot q_{err}
+\dot{q} = \frac{1}{2} q \otimes \begin{bmatrix} 0 \\\\ \boldsymbol{\omega} \end{bmatrix} \implies \begin{bmatrix} 0 \\\\ \boldsymbol{\omega} \end{bmatrix} = 2 \, \bar{q} \otimes \dot{q}
 $$
 
-**3. Why Multiply by 2? (Half-Angle Property):**
-Quaternions represent rotations using half-angles:
+**Step 2: Proportional Controller in Error Space**  
+In the body-fixed error frame (measured relative to unrotated identity $`q_u = [1, 0, 0, 0]^T`$):
+- Reference is identity: $`\bar{q}_u = [1, 0, 0, 0]^T`$.
+- Desired rotation rate is proportional to attitude error: $`\dot{q} = K_p \cdot q_{err}`$.
+
+**Step 3: Hamilton Product Expansion**  
+Substituting $`\bar{q}_u`$ and $`\dot{q}`$ into the kinematic equation:
 
 $$
-q = \begin{bmatrix} \cos(\theta / 2) \\\\ \mathbf{n} \sin(\theta / 2) \end{bmatrix} \implies \mathbf{q}_v \approx \frac{\theta}{2} \mathbf{n}
+\begin{bmatrix} 0 \\\\ \boldsymbol{\omega}_{sp} \end{bmatrix} = 2 \begin{bmatrix} 1 \\\\ 0 \\\\ 0 \\\\ 0 \end{bmatrix} \otimes \left( K_p \begin{bmatrix} q_{w,err} \\\\ q_{x,err} \\\\ q_{y,err} \\\\ q_{z,err} \end{bmatrix} \right)
 $$
 
-Since the vector error $`\mathbf{q}_v`$ holds only **half** the rotation angle ($`\theta / 2`$), multiplying by **2** recovers the full rotation speed ($`2 \times \frac{\theta}{2} = \theta`$).
+Multiplying by identity quaternion preserves each element:
 
-**4. Final Master Outer-Loop Law:**
-Taking the 3D imaginary vector error $`\mathbf{q}_{v,err} = [q_{x,err}, q_{y,err}, q_{z,err}]^T`$:
+$$
+\begin{bmatrix} 0 \\\\ \omega_{x,sp} \\\\ \omega_{y,sp} \\\\ \omega_{z,sp} \end{bmatrix} = 2 \cdot K_p \begin{bmatrix} q_{w,err} \\\\ q_{x,err} \\\\ q_{y,err} \\\\ q_{z,err} \end{bmatrix}
+$$
+
+Matching the 3 rotational vector components ($x, y, z$) yields the master control law:
 
 $$
 \boldsymbol{\omega}_{sp} = 2 \cdot K_p \cdot \mathbf{q}_{v,err,short} = 2 \cdot K_p \cdot \begin{bmatrix} q_{x,err,short} \\\\ q_{y,err,short} \\\\ q_{z,err,short} \end{bmatrix}
