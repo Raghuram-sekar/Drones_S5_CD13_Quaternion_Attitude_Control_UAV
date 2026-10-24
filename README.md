@@ -174,7 +174,7 @@ $$
 <p align="center">
   <img src="figures/fig_attitude_error_3d_spatial.jpg" alt="Quaternion Attitude Error Resolution (Current 90 Bank to Target 30 Pitch)" width="850"/>
   <br>
-  <em>Figure 2.2: 3D Spatial Attitude Error Resolution ($q_{err} = \bar{q}_{meas} \otimes q_{sp}$) showing instantaneous rotation axis linking current 90° knife-edge flight to commanded 30° pitch setpoint.</em>
+  <em>Figure 2.2: 3D Spatial Attitude Error Resolution (q<sub>err</sub> = q&#772;<sub>meas</sub> &otimes; q<sub>sp</sub>) showing the instantaneous rotation axis linking current 90&deg; knife-edge flight to commanded 30&deg; pitch setpoint.</em>
 </p>
 
 
@@ -201,7 +201,7 @@ $$
 <p align="center">
   <img src="figures/fig_shortest_path_drone_tilt.jpg" alt="Quaternion Shortest-Path Drone Tilt Comparison (q vs -q)" width="850"/>
   <br>
-  <em>Figure 2.3: Shortest-Path Geodesic Arc Check ($q$ vs $-q$). The scalar condition $q_{w,err} \ge 0$ enforces the direct green geodesic path ($\le 180^\circ$) over the wasteful red reverse loop ($> 180^\circ$).</em>
+  <em>Figure 2.3: Shortest-Path Geodesic Arc Check (q vs &minus;q). The scalar condition q<sub>w,err</sub> &ge; 0 enforces the direct green geodesic path (&le; 180&deg;) over the wasteful red reverse loop (&gt; 180&deg;).</em>
 </p>
 
 
@@ -239,7 +239,7 @@ $$
 <p align="center">
   <img src="figures/fig_outer_loop_qp_controller.jpg" alt="Closed-Loop Outer Quaternion Proportional QP Attitude Controller Architecture" width="950"/>
   <br>
-  <em>Figure 2.4: Closed-Loop Outer-Loop Quaternion Proportional ($Q_P$) Attitude Controller Architecture. Illustrates target attitude setpoint ($`\mathbf{q}_{sp}`$), quaternion error resolution ($`\mathbf{q}_{err} = \mathbf{q}_{meas}^{-1} \otimes \mathbf{q}_{sp}`$), shortest-path geodesic arc enforcement ($`\text{sgn}(q_{w,err})`$), proportional body spin rate calculation ($`\boldsymbol{\omega}_{sp} = 2 \cdot \mathbf{K}_p \cdot \mathbf{q}_{v,err}`$), rate saturation limiter, commanded 3D body rate execution ($`p_{cmd}, q_{cmd}, r_{cmd}`$) on the physical UAV, and continuous closed-loop attitude feedback from the onboard AHRS / EKF2 state estimator.</em>
+  <em>Figure 2.4: Outer-Loop Quaternion Proportional (Q<sub>P</sub>) Attitude Controller Architecture. Illustrates target attitude setpoint (q<sub>sp</sub>), quaternion tracking error resolution, shortest-path geodesic arc enforcement (sgn(q<sub>w,err</sub>)), proportional body spin rate generation (&omega;<sub>sp</sub> = 2 &middot; K<sub>p</sub> &middot; q<sub>v,err</sub>), rate saturation limiting, commanded 3D body rates (p<sub>cmd</sub>, q<sub>cmd</sub>, r<sub>cmd</sub>) on the physical UAV, and continuous closed-loop attitude feedback from the onboard AHRS state estimator.</em>
 </p>
 
 ---
@@ -685,7 +685,7 @@ To evaluate flight stability under realistic atmospheric disturbances, a **Dryde
 <p align="center">
   <img src="figures/fig_turbulence_rejection.png" alt="Atmospheric Turbulence and Gust Rejection Benchmark" width="950"/>
   <br>
-  <em>Figure 4.7: 6-DOF Aircraft Simulation Response under Dryden Atmospheric Turbulence & 15 m/s Crosswind Gust applied at t = 8.0 s to 11.0 s in the lateral (+Yb) axis during an 80° bank turn.</em>
+  <em>Figure 4.7: 6-DOF Aircraft Simulation Response under Dryden Atmospheric Turbulence & 15 m/s Crosswind Gust applied at t = 8.0 s to 11.0 s in the lateral (+Y<sub>b</sub>) axis during an 80&deg; bank turn.</em>
 </p>
 
 *To reproduce these simulation results:*
