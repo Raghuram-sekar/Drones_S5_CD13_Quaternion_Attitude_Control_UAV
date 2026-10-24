@@ -171,6 +171,10 @@ $$
 q_{err} = \bar{q}_{meas} \otimes q_{sp}
 $$
 
+<p align="center">
+<img width="2318" height="1536" alt="image" src="https://github.com/user-attachments/assets/6ac57291-5979-421b-962f-b701b3d6b262" />
+</p>
+
 Expanding component-wise:
 
 $$
@@ -189,6 +193,9 @@ Because $q$ and $-q$ represent identical physical 3D orientations (double coveri
 $$
 q_{err,short} = \begin{cases} -q_{err} & \text{if } q_{w,err} < 0 \\\\ q_{err} & \text{if } q_{w,err} \ge 0 \end{cases}
 $$
+<p align="center">
+<img width="937" height="497" alt="Screenshot 2026-10-24 121532" src="https://github.com/user-attachments/assets/a1fb0329-c144-4c54-8dab-bf36b5db9057" />
+</p>
 
 In terms of physical axis-angle representation $(\mathbf{e}, \alpha)$:
 
